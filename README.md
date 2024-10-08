@@ -114,6 +114,7 @@ This system allows FrameFinderLE to provide personalized, relevant results that 
 
 ## Directory Structure
 
+```
 /FrameFinderLE/
 │
 ├── database/
@@ -198,9 +199,7 @@ This system allows FrameFinderLE to provide personalized, relevant results that 
 ├── app.py
 ├── README.md
 └── requirements.txt
-
-
-"""
+```
 
 ## Usage
 
