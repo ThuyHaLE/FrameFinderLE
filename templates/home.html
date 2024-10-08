@@ -1,0 +1,95 @@
+{% extends "layout.html" %}
+
+{% block title %} 
+<title>FrameFinderLE Demo</title> 
+<link rel="stylesheet" href="{{ url_for('style', path='home_style.js') }}">
+{% endblock %}
+
+{% block content %}
+<script src="{{ url_for('style', path='home_style.js') }}"></script>
+<script src="{{ url_for('style', path='popup_mess.js') }}"></script>
+<script src="{{ url_for('script', path='home_script.js') }}"></script>
+<script src="{{ url_for('script', path='popup_mess_script.js') }}"></script>
+
+<div class="container">
+  <form id="searchForm" method="post" action="/home" enctype="multipart/form-data" class="form-container">
+    <div class="form-group">
+        <label for="queryInput">A query text</label>
+        <div class="query-row">
+            <input type="text" id="queryInput" name="query_text" class="form-control mb-2" placeholder="Enter query text..." />
+            <button type="button" class="clear-btn" onclick="clearQuery()">Clear</button>
+        </div>
+        <p class="note text-muted">Note: The relevant hashtags will be generated when you input your query and you can customize them by yourself.</p>
+    </div>
+
+    <div class="form-group">
+        <div class="hashtags-checkboxes">
+            <input type="checkbox" id="generateHashtags" class="db-checkbox" checked>
+            <label for="generateHashtags">Generate Relevance Hashtags</label>
+        </div>
+    </div>
+
+    <div class="form-group" id="relevanceHashtagsGroup">
+        <label for="hashtagsContainer">Relevance hashtags</label>
+        <div id="hashtagsContainer" class="hashtag-row mb-2"></div>
+        <p class="note text-muted">Note: If the Relevance hashtags box or Query text is null. Click 'Clear All' to add your hashtags.</p>
+        <button id="clearAllButton" type="button" class="btn btn-danger mb-2" onclick="clearAllHashtags()">Clear All</button>
+    </div>  
+
+    <input type="hidden" id="hiddenHashtags" name="hiddenHashtags">
+
+    <div class="form-row">
+    
+      <div class="form-group">
+        <label>Select database</label>
+        <div class="database-checkboxes">
+          <input type="checkbox" id="db_CLIP_v0" name="database_name" value="CLIP_v0" class="db-checkbox" {% if database_name == 'CLIP_v0' %}checked{% endif %}>
+          <label for="db_CLIP_v0">CLIP_v0</label>
+          <input type="checkbox" id="db_CLIP_v2" name="database_name" value="CLIP_v2" class="db-checkbox" checked>
+          <label for="db_CLIP_v2">CLIP_v2</label>
+        </div>
+      </div>
+      
+      <div class="form-group">
+        <label for="k_input">Number of Neighbors (K)</label>
+        <input type="text" id="k_input" name="k" value="100" class="form-control" placeholder="No Filter">
+      </div>
+
+      <div class="form-group">
+        <label for="display_option">Display Option</label>
+        <select id="display_option" name="display_option">
+          <option value="sort_by_frame_index">Sort by Frame Index</option>
+          <option value="group_by_videoid">Group by VideoID</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+          <label for="images_per_page">Images/Page</label>
+          <select id="images_per_page" name="images_per_page">
+              <option value="10">10</option>
+              <option value="20">20</option>
+              <option value="30">30</option>
+              <option value="40">40</option>
+              <option value="50" selected>50</option>
+              <option value="100">100</option>
+          </select>
+      </div>
+
+      <div class="form-group">
+          <label for="submit-btn" class="btn-label">Submission</label>
+          <button id="submit-btn" type="submit" class="btn-primary submit-btn">Submit</button>
+      </div>
+
+      <!-- Modal Structure -->
+      <div id="errorModal" class="modal"> <!-- Changed ID from myModal to errorModal -->
+        <div class="modal-content">
+          <span class="close-btn" onclick="closeErrorModal()">&times;</span> <!-- Updated function name -->
+          <p id="errorMessage">Your message here</p> <!-- Updated ID to match the script -->
+        </div>
+      </div>
+
+    </div>
+  </form>
+</div>
+
+{% endblock %}

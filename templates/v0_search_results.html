@@ -1,0 +1,171 @@
+{% extends "layout.html" %}
+
+{% block title %} 
+<title>Display Results</title>
+<link rel="stylesheet" href="{{ url_for('style', path='show_results_style.js') }}"> 
+{% endblock %}
+
+{% block content %}
+<script src="{{ url_for('style', path='show_results_style.js') }}"></script>
+
+<!-- Display Total Results -->
+<p>Total results: {{ total_images }}</p>
+
+<!-- templates/v0_search_results.html -->
+<div class="gallery">
+    {% for result in results %}
+        {% for video_id, data in result.items() %}
+            <div class="gallery-item" onclick="openModal('{{ url_for('key_frame_folder_reduced', path=data.image_path) }}', '{{ video_id }}', '{{ data.idx }}', '{{ data.timestamp }}', '{{ data.db_idx }}')" data-video-id="{{ video_id }}" data-frame-id="{{ data.idx }}" data-timestamp="{{ data.timestamp }}" data-db-idx="{{ data.db_idx }}">
+                <div class="index-number">{{ video_id }} | {{ data.idx }}</div>
+                <div>
+                    <img src="{{ url_for('key_frame_folder_reduced', path=data.image_path) }}" alt="Image">
+                </div>
+            </div>
+        {% endfor %}
+    {% endfor %}
+</div>
+
+<!-- The Modal -->
+<!-- Modal structure -->
+<div id="myModal" class="modal">
+    <div class="modal-content">
+        <span class="close" onclick="closeModal()">&times;</span>
+        <div class="navigation-arrows">
+            <button class="nav-arrow left" onclick="showPreviousImage()">&lt;</button>
+            <button class="nav-arrow right" onclick="showNextImage()">&gt;</button>
+        </div>
+        <img id="modalImage" src="" alt="Image">
+        <div id="modalIndex" style="color: #fff; text-align: center; margin-top: 10px;"></div>
+    </div>
+</div>
+
+<script>
+// Global variables to keep track of current image index and all images
+let currentImageIndex = 0;
+let allImages = [];
+
+/** 
+ * Opens a modal with the provided image and metadata. 
+ * @param {string} imagePath - The path to the image to display. 
+ * @param {string} videoID - The ID of the video. 
+ * @param {string} frameID - The ID of the frame. 
+ * @param {string} timestamp - The timestamp of the frame. 
+ */ 
+// Modify openModal to initialize allImages based on current page items
+function openModal(imagePath, videoID, frameID, timestamp) {
+    const modal = document.getElementById('myModal');
+    const modalImage = document.getElementById('modalImage');
+    const modalIndex = document.getElementById('modalIndex');
+
+    modalImage.src = imagePath; // Set the image source.
+    modalIndex.innerText = `Video ID: ${videoID} | Frame ID: ${frameID} | Timestamp: ${timestamp}`; // Set the metadata text.
+    modal.classList.add('show'); // Add class to trigger zoom-in effect.
+    modal.style.display = 'block'; // Show the modal.
+
+    // Initialize allImages for the current page
+    allImages = Array.from(document.querySelectorAll('.gallery-item img')).map(img => ({
+        src: img.src,
+        videoID: img.closest('.gallery-item').getAttribute('data-video-id'),
+        frameID: img.closest('.gallery-item').getAttribute('data-frame-id'),
+        timestamp: img.closest('.gallery-item').getAttribute('data-timestamp')
+    }));
+
+    // Find the index of the current image
+    currentImageIndex = allImages.findIndex(img => img.src === imagePath);
+
+    // Add event listeners for keyboard navigation
+    document.addEventListener('keydown', handleKeyPress);
+    
+    // Add event listener to close modal when clicking outside the image.
+    modal.addEventListener('click', outsideClickListener);
+}
+
+/** 
+ * Closes the modal. 
+ */ 
+function closeModal() { 
+    const modal = document.getElementById('myModal'); 
+    modal.classList.remove('show'); // Remove the class that triggers the zoom-in effect. 
+    modal.style.display = 'none'; // Hide the modal. 
+    
+    // Remove event listeners
+    document.removeEventListener('keydown', handleKeyPress);
+    modal.removeEventListener('click', outsideClickListener);
+}
+
+/** 
+ * Handles key press events for navigation. 
+ * @param {KeyboardEvent} event - The keyboard event. 
+ */ 
+function handleKeyPress(event) {
+    if (event.key === 'ArrowLeft') {
+        showPreviousImage();
+    } else if (event.key === 'ArrowRight') {
+        showNextImage();
+    } else if (event.key === 'Escape') {
+        closeModal();
+    }
+}
+
+/** 
+ * Shows the next image in the modal. 
+ */ 
+function showNextImage() {
+    if (currentImageIndex < allImages.length - 1) {
+        currentImageIndex++;
+        updateModalImage();
+    }
+}
+
+/** 
+ * Shows the previous image in the modal. 
+ */ 
+function showPreviousImage() {
+    if (currentImageIndex > 0) {
+        currentImageIndex--;
+        updateModalImage();
+    }
+}
+
+/** 
+ * Updates the modal with the current image and its metadata. 
+ */ 
+function updateModalImage() {
+    const currentImage = allImages[currentImageIndex];
+    const modalImage = document.getElementById('modalImage');
+    const modalIndex = document.getElementById('modalIndex');
+    
+    modalImage.src = currentImage.src;
+    modalIndex.innerText = `Video ID: ${currentImage.videoID} | Frame ID: ${currentImage.frameID} | Timestamp: ${currentImage.timestamp}`;
+}
+
+/** 
+ * Listens for clicks outside the modal to close it. 
+ * @param {Event} event - The click event. 
+ */ 
+function outsideClickListener(event) { 
+    const modal = document.getElementById('myModal'); 
+    if (event.target === modal) { 
+        closeModal();
+    } 
+}
+
+// Initialize allImages array when the page loads
+document.addEventListener('DOMContentLoaded', () => {
+    allImages = Array.from(document.querySelectorAll('.gallery-item img')).map(img => ({
+        src: img.src,
+        videoID: img.closest('.gallery-item').getAttribute('data-video-id'),
+        frameID: img.closest('.gallery-item').getAttribute('data-frame-id'),
+        timestamp: img.closest('.gallery-item').getAttribute('data-timestamp')
+    }));
+});
+
+/**
+ * Initializes the hashtags when the page loads.
+ */
+window.onload = function() {
+    updateHashtags(); // Call the function to update hashtags on page load.
+};
+</script>
+<!-- Include pagination if needed -->
+{% endblock %}

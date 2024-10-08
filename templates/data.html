@@ -1,0 +1,294 @@
+{% extends "layout.html" %}
+
+{% block title %} 
+<title>Data Overview</title> 
+{% endblock %}
+
+{% block content %}
+<style>
+  .data-container {
+    margin: 1rem;
+    background-color: #1b1b1b;
+    padding: 15px;
+    border-radius: 10px;
+  }
+  .image-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 10px;
+  }
+  .image-item {
+    position: relative;
+    text-align: center;
+  }
+  
+  .image-item img {
+    width: 100%;
+    height: auto;
+    border-radius: 5px;
+  }
+  .image-item .details {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: rgba(0, 0, 0, 0.5);
+    color: white;
+    padding: 1px;
+    border-radius: 0 0 1px 1px;
+    font-size: 10px; /* Adjust the size as needed */
+  }
+  .pagination {
+    text-align: center;
+    margin-top: 1rem;
+  }
+  .pagination a {
+    color: #ffcc00;
+    padding: 5px;
+    text-decoration: none;
+  }
+  .pagination a.active {
+    font-weight: bold;
+  }
+
+  .btn-primary.submit-btn {
+        height: 23px;
+        line-height: 23px;
+        padding: 0 20px;
+        border: none;
+        background-color: #ffcc00; /* Match with home.html */
+        color: black;
+        border-radius: 5px;
+        cursor: pointer;
+        font-size: 1rem;
+    }
+    .btn-primary.submit-btn:hover {
+        background-color: #e6b800;
+    }
+
+    .modal {
+        display: none; /* Hidden by default */
+        position: fixed; /* Stay in place */
+        z-index: 1000; /* Sit on top */
+        left: 0;
+        top: 0;
+        width: 100%; /* Full width */
+        height: 100%; /* Full height */
+        overflow: auto; /* Enable scroll if needed */
+        background-color: rgba(0, 0, 0, 0.8); /* Black with opacity */
+    }
+
+    .modal-content {
+        background-color: #1b1b1b;
+        margin: 3% auto; /* 15% from the top and centered */
+        padding: 20px;
+        border: 1px solid #888;
+        width: 60%; /* Could be more or less, depending on screen size */
+    }
+
+    .close {
+        color: #aaa;
+        float: right;
+        font-size: 28px;
+        font-weight: bold;
+    }
+
+    .close:hover,
+    .close:focus {
+        color: white;
+        text-decoration: none;
+        cursor: pointer;
+    }
+
+    .modal-nav {
+      position: absolute;
+      top: 50%;
+      transform: translateY(-50%);
+      font-size: 3rem;
+      color: white;
+      cursor: pointer;
+      background: rgba(0, 0, 0, 0.5);
+      padding: 10px;
+      border-radius: 5px;
+    }
+
+    .modal-nav.prev {
+      left: 10px;
+    }
+
+    .modal-nav.next {
+      right: 10px;
+    }
+
+</style>
+  
+<div class="data-container">
+  <h2 style="color: #ffcc00;">Data Overview</h2>
+  
+  <!-- Filter Form -->
+  <form method="get" action="/data" onsubmit="return validateForm()">
+    <label for="video_ID" style="color: #ffcc00;">Filter by Video ID:</label>
+    <input type="text" id="video_ID" name="video_ID" value="{{ video_ID }}" placeholder="L01_V001">
+
+    <label for="timestamp" style="color: #ffcc00;">Started at:</label>
+    <input type="text" id="timestamp" name="timestamp" value="{{ timestamp }}" placeholder="hh:mm:ss[.SSS]" pattern="([01]?\d|2[0-3]):[0-5]\d:[0-5]\d(\.\d{1,6})?" title="Please enter the timestamp in hh:mm:ss format">
+
+    <!-- Up and Down buttons to modify timestamp -->
+    <button type="button" onclick="incrementTime()">▲</button>
+    <button type="button" onclick="decrementTime()">▼</button>
+
+    <button type="submit" class="btn-primary submit-btn">Apply Filter</button>
+  </form>
+
+  <div class="image-grid">
+    {% for keyframe in keyframes %}
+    <div class="image-item" onclick="openModal('{{ url_for('key_frame_folder_reduced', path=keyframe.frame_path) }}', '{{ loop.index0 }}', '{{ keyframe.frame_ID }}', '{{ keyframe.timestamp }}')">
+        <img src="{{ url_for('key_frame_folder_reduced', path=keyframe.frame_path) }}" alt="Keyframe {{ keyframe.frame_ID }}">
+        <div class="details">
+            <p>{{ keyframe.video_ID }} | {{ keyframe.frame_ID }} | {{ keyframe.timestamp }}</p>
+        </div>
+    </div>
+    {% endfor %}
+  </div>
+
+  <!-- The Modal -->
+  <div id="myModal" class="modal">
+      <div class="modal-content">
+          <span class="close" onclick="closeModal()">&times;</span>
+          <img id="modalImage" src="" alt="Image" style="width: 100%; height: auto;">
+          <div id="modalIndex" style="color: #fff; text-align: center; margin-top: 10px;"></div>
+          <div id="modalInfo" style="color: #fff; text-align: center; margin-top: 10px;"></div>
+          <div class="modal-nav prev" onclick="navigateModal(-1)">&#10094;</div>
+          <div class="modal-nav next" onclick="navigateModal(1)">&#10095;</div>
+      </div>
+  </div>
+
+  <!-- Pagination -->
+  <div class="pagination">
+    {% if current_page > 1 %}
+    <a href="/data?page={{ current_page - 1 }}&video_ID={{ video_ID }}&timestamp={{ timestamp }}">Previous</a>
+    {% endif %}
+    {% for page in range(1, total_pages + 1) %}
+      <a href="/data?page={{ page }}&video_ID={{ video_ID }}&timestamp={{ timestamp }}" class="{% if page == current_page %}active{% endif %}">{{ page }}</a>
+    {% endfor %}
+    {% if current_page < total_pages %}
+    <a href="/data?page={{ current_page + 1 }}&video_ID={{ video_ID }}&timestamp={{ timestamp }}">Next</a>
+    {% endif %}
+  </div>
+</div>
+
+<script>
+  // Function to increment timestamp by 1 second
+  function incrementTime() {
+    let timestampInput = document.getElementById('timestamp');
+    let timeArray = timestampInput.value.split(':').map(Number);
+
+    if (timeArray.length === 3) {
+      timeArray[2]++;  // Increment seconds
+      if (timeArray[2] >= 60) {
+        timeArray[2] = 0;
+        timeArray[1]++;  // Increment minutes
+      }
+      if (timeArray[1] >= 60) {
+        timeArray[1] = 0;
+        timeArray[0]++;  // Increment hours
+      }
+      timestampInput.value = timeArray.map(num => String(num).padStart(2, '0')).join(':');
+    }
+  }
+
+  // Function to decrement timestamp by 1 second
+  function decrementTime() {
+    let timestampInput = document.getElementById('timestamp');
+    let timeArray = timestampInput.value.split(':').map(Number);
+
+    if (timeArray.length === 3) {
+      timeArray[2]--;  // Decrement seconds
+      if (timeArray[2] < 0) {
+        timeArray[2] = 59;
+        timeArray[1]--;  // Decrement minutes
+      }
+      if (timeArray[1] < 0) {
+        timeArray[1] = 59;
+        timeArray[0]--;  // Decrement hours
+      }
+      if (timeArray[0] < 0) {
+        timeArray[0] = 0;  // Prevent negative hours
+      }
+      timestampInput.value = timeArray.map(num => String(num).padStart(2, '0')).join(':');
+    }
+  }
+
+  function validateForm() {
+    const videoID = document.getElementById('video_ID').value.trim();
+    const timestamp = document.getElementById('timestamp').value.trim();
+
+    // Check if timestamp is provided
+    if (timestamp && !videoID) {
+      alert("Please enter Video ID when Timestamp is provided.");
+      return false; // Prevent form submission
+    }
+
+    return true; // Allow form submission
+  }
+
+  let currentImageIndex = 0;
+  const images = [
+    {% for keyframe in keyframes %}
+      {
+        src: "{{ url_for('key_frame_folder_reduced', path=keyframe.frame_path) }}",
+        frameID: "{{ keyframe.frame_ID }}",
+        timestamp: "{{ keyframe.timestamp }}",
+        videoID: "{{ keyframe.video_ID }}"  // Add this line
+      },
+    {% endfor %}
+  ];
+
+  function openModal(imageSrc, index, frameID, timestamp) {
+      currentImageIndex = parseInt(index);
+      updateModalContent();
+      document.getElementById("myModal").style.display = "block";
+  }
+
+  function closeModal() {
+      document.getElementById("myModal").style.display = "none";
+  }
+
+  function updateModalContent() {
+      const image = images[currentImageIndex];
+      document.getElementById("modalImage").src = image.src;
+      document.getElementById("modalIndex").innerText = "Index: " + (currentImageIndex + 1);
+      document.getElementById("modalInfo").innerText = "Video ID: " + image.videoID + " | " + "Frame ID: " + image.frameID  + " | " + "Timestamp: " + image.timestamp;
+  }
+
+  function navigateModal(direction) {
+      currentImageIndex += direction;
+      if (currentImageIndex < 0) currentImageIndex = images.length - 1;
+      if (currentImageIndex >= images.length) currentImageIndex = 0;
+      updateModalContent();
+  }
+
+  // Close the modal if the user clicks outside of the modal content
+  window.onclick = function(event) {
+      var modal = document.getElementById("myModal");
+      if (event.target == modal) {
+          closeModal();
+      }
+  }
+
+  // Add keyboard navigation
+  document.addEventListener('keydown', function(event) {
+      if (document.getElementById("myModal").style.display === "block") {
+          if (event.key === "ArrowLeft") {
+              navigateModal(-1);
+          } else if (event.key === "ArrowRight") {
+              navigateModal(1);
+          } else if (event.key === "Escape") {
+              closeModal();
+          }
+      }
+  });
+
+</script>
+
+{% endblock %}

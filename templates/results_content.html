@@ -1,0 +1,49 @@
+<!-- Display Total Results -->
+<p>Total results: {{ total_images }}</p>
+
+<div class="gallery">
+    {% for result in paginated_results %}
+        {% for videoID, data in result.items() %}
+            <div class="gallery-item"
+                data-video-id="{{ videoID }}"
+                data-frame-id="{{ data.idx }}"
+                data-timestamp="{{ data.timestamp }}"
+                data-db-idx="{{ data.db_idx }}">
+                <div class="index-number">{{ videoID }} | {{ data.idx }}</div>
+
+                <!-- Image click handler for opening the modal -->
+                <div onclick="openModal('{{ url_for('key_frame_folder_reduced', path=data.image_path) }}', '{{ videoID }}', '{{ data.idx }}', '{{ data.timestamp }}', '{{ data.db_idx }}')">
+                    <img src="{{ url_for('key_frame_folder_reduced', path=data.image_path) }}" alt="Image">
+                </div>
+
+                <!-- Like and dislike buttons -->
+                <div class="like-dislike-buttons">
+                    <button id="like-{{ data.db_idx }}" class="like-button" onclick="toggleLike('{{ data.db_idx }}')">Like</button>
+                    <button id="dislike-{{ data.db_idx }}" class="dislike-button" onclick="toggleDislike('{{ data.db_idx }}')">Dislike</button>
+                </div>
+
+                <!-- Feedback display (e.g., "You liked this", "You disliked this") -->
+                <div id="feedback-status-{{ data.db_idx }}" class="feedback-status">
+                    {{ 'You liked this' if data.liked else 'You disliked this' if data.disliked else '' }}
+                </div>
+            </div>
+        {% endfor %}
+    {% endfor %}
+</div>
+
+
+<div class="pagination">
+    {% if page > 1 %}
+        <button onclick="changePage({{ page - 1 }})">Previous</button>
+    {% else %}
+        <button disabled>Previous</button>
+    {% endif %}
+    
+    <span>Page {{ page }} of {{ total_pages }}</span>
+    
+    {% if page < total_pages %}
+        <button onclick="changePage({{ page + 1 }})">Next</button>
+    {% else %}
+        <button disabled>Next</button>
+    {% endif %}
+</div>

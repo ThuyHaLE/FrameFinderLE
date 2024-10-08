@@ -1,0 +1,8 @@
+fastapi
+uvicorn
+python-multipart
+faiss-cpu
+nest_asyncio
+pyngrok
+multiprocess
+git+https://github.com/openai/CLIP.git
