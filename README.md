@@ -42,7 +42,7 @@ FrameFinderLE overcomes these challenges by:
 
 ## System Overview
 
-![FrameFinderLE's diagram](./diagram/FrameFinderLE_fw_v1.png)
+![FrameFinderLE's diagram](https://github.com/ThuyHaLE/FrameFinderLE/blob/main/diagram/FrameFinderLE_diagram.png)
 
 ## Key Features
 
