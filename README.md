@@ -1,50 +1,51 @@
-# FrameFinderLE
+# ⚡ FrameFinderLE ⚡
 
 FrameFinderLE is an advanced image and video frame retrieval system that enhances CLIP's image-text pairing capabilities with hashtag-based refinement and sophisticated user feedback mechanisms, providing an intuitive and flexible search experience.
 
-## Table of Contents
-- [FrameFinderLE](#framefinderle)
-  - [Table of Contents](#table-of-contents)
-  - [Motivation and Contribution](#motivation-and-contribution)
-    - [Problem Addressed](#problem-addressed)
-    - [Our Solution](#our-solution)
-    - [Key Contributions](#key-contributions)
-  - [System Overview](#system-overview)
-  - [Key Features](#key-features)
-  - [Technical Details](#technical-details)
-    - [Immediate Feedback System](#immediate-feedback-system)
-    - [Aggregated Feedback System](#aggregated-feedback-system)
-  - [Installation](#installation)
-  - [Directory Structure](#directory-structure)
-  - [Usage](#usage)
-  - [Contributing](#contributing)
-  - [License](#license)
+## ⚡ Table of Contents ⚡
+- [⚡ FrameFinderLE ⚡](#-framefinderle-)
+  - [⚡ Table of Contents ⚡](#-table-of-contents-)
+  - [⚡ Motivation and Contribution ⚡](#-motivation-and-contribution-)
+    - [🐳 Problem Addressed](#-problem-addressed)
+    - [🐳 Our Solution](#-our-solution)
+    - [🐳 Key Contributions](#-key-contributions)
+  - [⚡ System Overview ⚡](#-system-overview-)
+  - [⚡ Key Features ⚡](#-key-features-)
+    - [🐳 GRAFA Retrieval Mechanism](#-grafa-retrieval-mechanism)
+    - [🐳 Immediate Feedback System](#-immediate-feedback-system)
+    - [🐳 Aggregated Feedback System](#-aggregated-feedback-system)
+  - [⚡ Directory Structure ⚡](#-directory-structure-)
+  - [⚡ Usage ⚡](#-usage-)
+    - [🐳 How to start the application](#-how-to-start-the-application)
+    - [🐳 DEMO video](#-demo-video)
+  - [⚡ Contributing ⚡](#-contributing-)
+  - [⚡ License ⚡](#-license-)
 
-## Motivation and Contribution
+## ⚡ Motivation and Contribution ⚡
 
 FrameFinderLE addresses the limitations of traditional image retrieval systems, particularly when dealing with the complexities of human memory and imprecise queries.
 
-### Problem Addressed
+### 🐳 Problem Addressed
 - CLIP's 77-token limit restricts complex or detailed queries
 - Human memory and recall are often fragmented and imprecise
 - Traditional systems struggle with partial or imperfect user input
 
-### Our Solution
+### 🐳 Our Solution
 FrameFinderLE overcomes these challenges by:
 1. **Extended Descriptions**: Combining longer descriptions with traditional prompts to accommodate less precise inputs.
 2. **Hashtag Integration**: Allowing users to gradually refine their search using key terms, aligning with natural recall patterns.
 3. **Flexible Search System**: Creating an intuitive interface that matches how users naturally remember events and scenes.
 
-### Key Contributions
+### 🐳 Key Contributions
 - Bridges computer vision, natural language processing, and human-computer interaction
 - Advances cognitive computing by adapting to the fluid and imperfect nature of human recall
 - Enhances retrieval experiences and contributes to more advanced human-computer interaction models
 
-## System Overview
+## ⚡ System Overview ⚡
 
 ![FrameFinderLE's diagram](https://github.com/ThuyHaLE/FrameFinderLE/blob/main/diagram/FrameFinderLE_diagram.png)
 
-## Key Features
+## ⚡ Key Features ⚡
 
 1. **CLIP Integration**: Utilizes CLIP's powerful image-text pairing capabilities as the foundation of the retrieval system.
 2. **Hashtag-Based Refinement**: Allows users to narrow results using partial details or key terms.
@@ -56,63 +57,37 @@ FrameFinderLE overcomes these challenges by:
 6. **VideoID and Timestamp Filters**: Helps users find adjacent frames when searching for specific moments in video clips.
 7. **Multi-Modal Search**: Supports text queries, hashtags, and combinations for flexible searching.
 
-## Technical Details
+### 🐳 GRAFA Retrieval Mechanism
+The Dynamic Hashtag Exploration in GRAFA is a graph-based retrieval mechanism that discovers and ranks keyframes based on relationships between hashtags. Here's how it works:
+1. Hashtag Exploration:
+   - Query Initialization: Starts with the provided query hashtags and their embeddings.
+   - Graph Traversal: The hashtag co-occurrence graph is traversed to explore neighboring hashtags, capturing broader context while maintaining focus on relevant terms.
+2. Scoring System:
+   - Hybrid Score Calculation: Combines neighbor frequency and path length to score hashtags.
+   - Logarithmic Path Adjustment: Prevents score inflation from repetitive paths by logarithmic scaling.
+3. Dynamic Exploration:
+   - Prioritizes hashtags with scores above the mean and adjusts exploration depth based on relevance.
+4. Stopping Criteria:
+   - Stops exploration based on reaching a defined number of keyframes, iterations, or a score threshold.
+5. Keyframe Ranking:
+   - Normalizes scores and ranks the top keyframes based on their final scores, retrieving the most relevant frames.
+  
+### 🐳 Immediate Feedback System
+The Immediate Feedback System provides rapid refinement of search results based on user interactions in the current session.
+1. Feedback Processing: Converts user feedback (likes, dislikes) into binary representation and uses pre-encoded frame representations for similarity calculations.
+2. Score Adjustment: Adjusts scores based on feedback, increasing for similar liked items and decreasing for similar disliked items.
+3. Similarity-Based Refinement: Scores are weighted by similarity to feedback items.
+4. Real-time Updates: Scores update immediately after each feedback interaction.
+5. Final Refinement: The refined results are re-sorted and returned.
 
-### Immediate Feedback System
+### 🐳 Aggregated Feedback System
+The Aggregated Feedback System refines searches by incorporating historical feedback for long-term personalized results.
+1. Feedback Processing: Converts feedback into a binary form and applies a time-weighted decay factor for recent interactions.
+2. Score Adjustment: Adjusts scores based on the feedback factor, balancing exploration with exploitation.
+3. Time-Sensitive Refinement: Recent feedback has more influence, adapting to changing preferences.
+4. Final Refinement: Combines adjusted scores with original relevance for re-ranked results.
 
-The Immediate Feedback System in FrameFinderLE provides rapid refinement of search results based on user interactions within the current session. Here's how it works:
-
-1. **Feedback Processing**: 
-   - User feedback (likes, dislikes, neutral) is converted to a binary representation.
-   - The system uses pre-encoded representations of database entries (frames) for efficient similarity calculations.
-
-2. **Score Adjustment**:
-   - For liked items, the system increases the scores of similar items in the result set.
-   - For disliked items, the system decreases the scores of similar items.
-   - Neutral feedback does not affect scores.
-
-3. **Similarity-Based Refinement**:
-   - The system calculates similarities between the feedback item and all other items in the current result set.
-   - Score adjustments are weighted based on these similarity calculations.
-
-4. **Real-time Updates**:
-   - Scores are updated immediately after each piece of feedback, allowing for rapid refinement of results within the session.
-
-5. **Final Refinement**:
-   - After processing all feedback, the system sorts the updated scores and returns a refined list of results.
-
-This system allows FrameFinderLE to provide instant, personalized refinements to search results based on user interactions, enhancing the user experience and the relevance of returned items.
-
-### Aggregated Feedback System
-
-The Aggregated Feedback System in FrameFinderLE is a complex mechanism that refines search results based on user interactions. Here's how it works:
-
-1. **Feedback Processing**: 
-   - User feedback (likes, dislikes, neutral) is converted to a binary form.
-   - A feedback factor is calculated, considering recent interactions more heavily (using a decay factor and time weighting).
-
-2. **Score Adjustment**:
-   - Scores are adjusted based on the feedback factor.
-   - Positive feedback increases scores, negative feedback decreases scores, and neutral feedback has no effect.
-
-3. **Exploration vs. Exploitation**:
-   - An exploration ratio parameter balances showing new, potentially interesting results (exploration) with refining based on known preferences (exploitation).
-   - This helps prevent filter bubbles and allows users to discover diverse content.
-
-4. **Time-Sensitive Refinement**:
-   - Recent feedback is given more weight than older feedback, allowing the system to adapt to changing user preferences over time.
-
-5. **Final Refinement**:
-   - Adjusted scores are combined with original relevance scores.
-   - Results are re-ranked based on these final scores.
-
-This system allows FrameFinderLE to provide personalized, relevant results that improve over time with user interaction, while still maintaining diversity in the recommendations.
-
-## Installation
-
-[Updating]
-
-## Directory Structure
+## ⚡ Directory Structure ⚡
 
 ```
 /FrameFinderLE/
@@ -201,17 +176,20 @@ This system allows FrameFinderLE to provide personalized, relevant results that 
 └── requirements.txt
 ```
 
-## Usage
+## ⚡ Usage ⚡
+
+### 🐳 How to start the application
+
 1. Running the Application with Docker (via Docker Hub)
 - Prerequisites: Install Docker on your machine.
 - Steps:
 ```
 Pull the Docker image from Docker Hub:
-docker pull your-username/frame_finder_le:latest
+docker pull thuyhale/frame_finder_le:latest
 ```
 ```
 Run the Docker container:
-docker run -p 8000:8000 your-username/frame_finder_le:latest
+docker run -p 8000:8000 thuyhale/frame_finder_le:latest
 ```
 ```
 Open your browser and navigate to:
@@ -233,27 +211,29 @@ cd FrameFinderLE
 Install the required dependencies:
 pip install -r requirements.txt
 ```
+```
 Load database
 
 import gdown
+
 #Load and unzip images, store at static/images
-!gdown 1-92UIqmQ5ODeZlSQ61cjFmUdLVZZ_HfV #Load key frame folder (key_frame_folder_reduced.zip)
-!unzip -q key_frame_folder_reduced.zip -d static/images #Unzip key frame folder (key_frame_folder_reduced)
+gdown 1-92UIqmQ5ODeZlSQ61cjFmUdLVZZ_HfV #Load key frame folder (key_frame_folder_reduced.zip)
+unzip -q key_frame_folder_reduced.zip -d static/images #Unzip key frame folder (key_frame_folder_reduced)
 
 #Load database, store at database/
 cd FrameFinderLE/database
 #Load FAISS
-!gdown 1-CDUlIAIYAk5L87tXlYFosbUXQQANam8 #Load annotation (index_caption_hashtag_dict_v2.json)
-!gdown 1EvNEWTNPe8Tk20-Tn0O6BwAgURLJTHZP #Load database CLIP_v0 (merged_index_hnsw_baseline_v0.bin)
-!gdown 1-85d-oCWU39o9d8Ie0c5093fKTp0IpwO #Load database CLIP_v2 (merged_index_hnsw_baseline_v2.bin)
+gdown 1-CDUlIAIYAk5L87tXlYFosbUXQQANam8 #Load annotation (index_caption_hashtag_dict_v2.json)
+gdown 1EvNEWTNPe8Tk20-Tn0O6BwAgURLJTHZP #Load database CLIP_v0 (merged_index_hnsw_baseline_v0.bin)
+gdown 1-85d-oCWU39o9d8Ie0c5093fKTp0IpwO #Load database CLIP_v2 (merged_index_hnsw_baseline_v2.bin)
 
 #Load GRAFA
-!gdown 1-AotePkVml3iQONPxCZeK-gDjQFI0Asb #Graph database (graph_data_full.pkl)
-!gdown 1ZRt1-qvJP2CJcWzGykWQVN9JLHBS5XFR #List of hashtag embeddings (hashtag_embeddings.pkl)
-!gdown 1tZyr1h8yDJO_CXuMn5ounEEdiFKD530d #List of hashtag embeddings (hashtag_embeddings.bin)
+gdown 1-AotePkVml3iQONPxCZeK-gDjQFI0Asb #Graph database (graph_data_full.pkl)
+gdown 1ZRt1-qvJP2CJcWzGykWQVN9JLHBS5XFR #List of hashtag embeddings (hashtag_embeddings.pkl)
+gdown 1tZyr1h8yDJO_CXuMn5ounEEdiFKD530d #List of hashtag embeddings (hashtag_embeddings.bin)
 
-!gdown 1-KQx8lD7tHJH-RpbLE9gUBA8k_VV5fsI #Load encoded frames
-
+gdown 1-KQx8lD7tHJH-RpbLE9gUBA8k_VV5fsI #Load encoded frames
+```
 ```
 Run the application:
 uvicorn app:app --reload
@@ -263,17 +243,13 @@ Open your browser and navigate to:
 http://localhost:8000
 ```
 
-[Updating...
-1. How to start the system
-2. Examples of different types of queries (text, hashtags, combinations)
-3. How to use the immediate and aggregated feedback systems
-4. Explanation of how user feedback influences current and future searches
-5. Tips for effective searching and result refinement]
+### 🐳 DEMO video
+[Updating...]
 
-## Contributing
+## ⚡ Contributing ⚡
 
 [Updating]
 
-## License
+## ⚡ License ⚡
 
 This project is licensed under the Apache License 2.0 - see the [LICENSE](https://github.com/ThuyHaLE/FrameFinderLE/blob/main/LICENSE) file for details.
