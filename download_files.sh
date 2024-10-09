@@ -17,6 +17,9 @@ cd $DATABASE_PATH
 gdown 1-92UIqmQ5ODeZlSQ61cjFmUdLVZZ_HfV
 unzip -q key_frame_folder_reduced.zip -d $PROJECT_PATH/static/images
 
+# Remove the downloaded zip file
+rm key_frame_folder_reduced.zip
+
 # Download FAISS annotation
 gdown 1-CDUlIAIYAk5L87tXlYFosbUXQQANam8 -O $DATABASE_PATH/index_caption_hashtag_dict_v2.json
 
