@@ -202,6 +202,66 @@ This system allows FrameFinderLE to provide personalized, relevant results that 
 ```
 
 ## Usage
+1. Running the Application with Docker (via Docker Hub)
+- Prerequisites: Install Docker on your machine.
+- Steps:
+```
+Pull the Docker image from Docker Hub:
+docker pull your-username/frame_finder_le:latest
+```
+```
+Run the Docker container:
+docker run -p 8000:8000 your-username/frame_finder_le:latest
+```
+```
+Open your browser and navigate to:
+http://localhost:8000
+```
+
+2. Running the Application without Docker
+- Prerequisites: 
+  - Install Python 3.9 or higher.
+  - Install pip.
+  - (Optional) Set up a virtual environment.
+- Steps:
+```
+Clone the repository:
+git clone https://github.com/ThuyHaLE/FrameFinderLE.git
+cd FrameFinderLE
+```
+```
+Install the required dependencies:
+pip install -r requirements.txt
+```
+Load database
+
+import gdown
+#Load and unzip images, store at static/images
+!gdown 1-92UIqmQ5ODeZlSQ61cjFmUdLVZZ_HfV #Load key frame folder (key_frame_folder_reduced.zip)
+!unzip -q key_frame_folder_reduced.zip -d static/images #Unzip key frame folder (key_frame_folder_reduced)
+
+#Load database, store at database/
+cd FrameFinderLE/database
+#Load FAISS
+!gdown 1-CDUlIAIYAk5L87tXlYFosbUXQQANam8 #Load annotation (index_caption_hashtag_dict_v2.json)
+!gdown 1EvNEWTNPe8Tk20-Tn0O6BwAgURLJTHZP #Load database CLIP_v0 (merged_index_hnsw_baseline_v0.bin)
+!gdown 1-85d-oCWU39o9d8Ie0c5093fKTp0IpwO #Load database CLIP_v2 (merged_index_hnsw_baseline_v2.bin)
+
+#Load GRAFA
+!gdown 1-AotePkVml3iQONPxCZeK-gDjQFI0Asb #Graph database (graph_data_full.pkl)
+!gdown 1ZRt1-qvJP2CJcWzGykWQVN9JLHBS5XFR #List of hashtag embeddings (hashtag_embeddings.pkl)
+!gdown 1tZyr1h8yDJO_CXuMn5ounEEdiFKD530d #List of hashtag embeddings (hashtag_embeddings.bin)
+
+!gdown 1-KQx8lD7tHJH-RpbLE9gUBA8k_VV5fsI #Load encoded frames
+
+```
+Run the application:
+uvicorn app:app --reload
+```
+```
+Open your browser and navigate to:
+http://localhost:8000
+```
 
 [Updating...
 1. How to start the system
@@ -216,4 +276,4 @@ This system allows FrameFinderLE to provide personalized, relevant results that 
 
 ## License
 
-[Updating]
+This project is licensed under the Apache License 2.0 - see the [LICENSE](https://github.com/ThuyHaLE/FrameFinderLE/blob/main/LICENSE) file for details.
