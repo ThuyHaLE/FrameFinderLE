@@ -18,6 +18,7 @@ FrameFinderLE is an advanced image and video frame retrieval system that enhance
   - [⚡ Usage ⚡](#-usage-)
     - [🐳 How to start the application](#-how-to-start-the-application)
     - [🐳 DEMO video](#-demo-video)
+    - [🐳 Google colab demo](#-google-colab-demo)
   - [⚡ Contributing ⚡](#-contributing-)
   - [⚡ License ⚡](#-license-)
 
@@ -245,6 +246,9 @@ http://localhost:8000
 
 ### 🐳 DEMO video
 [Updating...]
+
+### 🐳 Google colab demo
+[Colab] (https://github.com/ThuyHaLE/FrameFinderLE/app_notebook.ipynb)
 
 ## ⚡ Contributing ⚡
 
