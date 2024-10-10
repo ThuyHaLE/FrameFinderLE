@@ -1,6 +1,13 @@
+scipy
+torch
+numpy
+spacy
+nltk
 fastapi
 uvicorn
 python-multipart
 faiss-cpu
 multiprocess
 git+https://github.com/openai/CLIP.git
+jinja2
+pydantic

@@ -26,6 +26,12 @@ COPY requirements.txt .
 # Install Python dependencies
 RUN pip install --no-cache-dir -r requirements.txt
 
+# Download spacy language model
+RUN python -m spacy download en_core_web_sm
+
+# Download NLTK 'punkt' resource
+RUN python -m nltk.downloader punkt
+
 # Copy the download script
 COPY download_files.sh .
 
