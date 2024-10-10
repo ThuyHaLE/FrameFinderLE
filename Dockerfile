@@ -29,8 +29,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Download spacy language model
 RUN python -m spacy download en_core_web_sm
 
-# Download NLTK 'punkt' resource
-RUN python -m nltk.downloader punkt
+# Download NLTK 'punkt' and 'punkt_tab' resources
+RUN python -m nltk.downloader punkt punkt_tab
 
 # Copy the download script
 COPY download_files.sh .
