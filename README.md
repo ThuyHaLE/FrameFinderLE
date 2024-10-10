@@ -248,7 +248,7 @@ http://localhost:8000
 [Updating...]
 
 ### 🐳 Google colab demo
-[Colab] (https://github.com/ThuyHaLE/FrameFinderLE/app_notebook.ipynb)
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github.com/ThuyHaLE/FrameFinderLE/blob/main/app_notebook.ipynb)
 
 ## ⚡ Contributing ⚡
 
