@@ -18,6 +18,7 @@ FrameFinderLE is an advanced image and video frame retrieval system that enhance
   - [⚡ Usage ⚡](#-usage-)
     - [🐳 How to start the application](#-how-to-start-the-application)
     - [🐳 DEMO video](#-demo-video)
+		- [🐳 Database preparation] (#-database-preparation)
     - [🐳 Google colab demo](#-google-colab-demo)
   - [⚡ Contributing ⚡](#-contributing-)
   - [⚡ License ⚡](#-license-)
@@ -243,6 +244,9 @@ uvicorn app:app --reload
 Open your browser and navigate to:
 http://localhost:8000
 ```
+
+### 🐳 Database preparation
+[Updating...]
 
 ### 🐳 DEMO video
 [Updating...]
