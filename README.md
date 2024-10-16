@@ -106,7 +106,7 @@ The Aggregated Feedback System refines searches by incorporating historical feed
 │   ├── __init__.py
 │   └── db_init.py
 │
-├── database/
+├── diagram/
 │   └── FrameFinderLE_diagram.png
 │
 ├── models/
