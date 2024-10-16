@@ -18,7 +18,7 @@ FrameFinderLE is an advanced image and video frame retrieval system that enhance
   - [⚡ Usage ⚡](#-usage-)
     - [🐳 How to start the application](#-how-to-start-the-application)
     - [🐳 DEMO video](#-demo-video)
-		- [🐳 Database preparation] (#-database-preparation)
+		- [🐳 Database preparation](#-database-preparation)
     - [🐳 Google colab demo](#-google-colab-demo)
   - [⚡ Contributing ⚡](#-contributing-)
   - [⚡ License ⚡](#-license-)
