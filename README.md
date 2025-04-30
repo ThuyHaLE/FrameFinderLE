@@ -1,53 +1,63 @@
-# ⚡ FrameFinderLE ⚡
+# ⚡FrameFinderLE⚡
 
-FrameFinderLE is an advanced image and video frame retrieval system that enhances CLIP's image-text pairing capabilities with hashtag-based refinement and sophisticated user feedback mechanisms, providing an intuitive and flexible search experience.
+FrameFinderLE is an advanced image and video frame retrieval system that improves real-world memory-driven search tasks. Originally inspired by the challenge of visual information retrieval in noisy, fragmented queries (e.g., user memory recall), it enhances CLIP with hashtag graphs and human-in-the-loop feedback mechanisms.   
 
-## ⚡ Table of Contents ⚡
-- [⚡ FrameFinderLE ⚡](#-framefinderle-)
-  - [⚡ Table of Contents ⚡](#-table-of-contents-)
-  - [⚡ Motivation and Contribution ⚡](#-motivation-and-contribution-)
-    - [🐳 Problem Addressed](#-problem-addressed)
-    - [🐳 Our Solution](#-our-solution)
-    - [🐳 Key Contributions](#-key-contributions)
-  - [⚡ System Overview ⚡](#-system-overview-)
-  - [⚡ Key Features ⚡](#-key-features-)
-    - [🐳 GRAFA Retrieval Mechanism](#-grafa-retrieval-mechanism)
-    - [🐳 Immediate Feedback System](#-immediate-feedback-system)
-    - [🐳 Aggregated Feedback System](#-aggregated-feedback-system)
-  - [⚡ Directory Structure ⚡](#-directory-structure-)
-  - [⚡ Usage ⚡](#-usage-)
-    - [🐳 How to start the application](#-how-to-start-the-application)
-    - [🐳 DEMO video](#-demo-video)
-    - [🐳 Database preparation](#-database-preparation)
-    - [🐳 Google colab demo](#-google-colab-demo)
-  - [⚡ Contributing ⚡](#-contributing-)
-  - [⚡ License ⚡](#-license-)
+## ⚡Table of Contents
+- [FrameFinderLE](#framefinderle)
+  - [Table of Contents](#table-of-contents)
+  - [Motivation and Contribution](#motivation-and-contribution)
+    - [Problem Addressed](#problem-addressed)
+    - [My Solution](#my-solution)
+    - [Key Contributions](#key-contributions)
+  - [System Overview](#system-overview)
+  - [Key Features](#key-features)
+    - [GRAFA Retrieval Mechanism](#grafa-retrieval-mechanism)
+    - [Immediate Feedback System](#immediate-feedback-system)
+    - [Aggregated Feedback System](#aggregated-feedback-system)
+  - [Directory Structure](#directory-structure)
+  - [Usage](#usage)
+    - [How to start the application](#how-to-start-the-application)
+    - [DEMO video](#demo-video)
+    - [Database preparation](#database-preparation)
+    - [Google colab demo](#google-colab-demo)
+  - [Valuation metrics](#valuation-metrics)
+  - [Limitations](#limitations)
+  - [Contributing](#contributing)
+  - [License](#license)
 
-## ⚡ Motivation and Contribution ⚡
+## ⚡Motivation and Contribution
 
 FrameFinderLE addresses the limitations of traditional image retrieval systems, particularly when dealing with the complexities of human memory and imprecise queries.
 
-### 🐳 Problem Addressed
+### 🐳Problem Addressed
 - CLIP's 77-token limit restricts complex or detailed queries
 - Human memory and recall are often fragmented and imprecise
 - Traditional systems struggle with partial or imperfect user input
 
-### 🐳 Our Solution
+### 🐳My Solution
 FrameFinderLE overcomes these challenges by:
 1. **Extended Descriptions**: Combining longer descriptions with traditional prompts to accommodate less precise inputs.
 2. **Hashtag Integration**: Allowing users to gradually refine their search using key terms, aligning with natural recall patterns.
 3. **Flexible Search System**: Creating an intuitive interface that matches how users naturally remember events and scenes.
 
-### 🐳 Key Contributions
+### 🐳Key Contributions
 - Bridges computer vision, natural language processing, and human-computer interaction
 - Advances cognitive computing by adapting to the fluid and imperfect nature of human recall
 - Enhances retrieval experiences and contributes to more advanced human-computer interaction models
 
-## ⚡ System Overview ⚡
+## ⚡How FrameFinderLE Goes Beyond CLIP
+- CLIP is limited to short text and lacks context handling
+- FrameFinderLE adds:
+   - Graph-based hashtag expansion (GRAFA)
+   - Real-time & historical user feedback learning
+   - Frame-to-frame similarity scoring for multi-modal refinement
+
+     
+## ⚡System Overview
 
 ![FrameFinderLE's diagram](https://github.com/ThuyHaLE/FrameFinderLE/blob/main/diagram/FrameFinderLE_diagram.png)
 
-## ⚡ Key Features ⚡
+## ⚡Key Features
 
 1. **CLIP Integration**: Utilizes CLIP's powerful image-text pairing capabilities as the foundation of the retrieval system.
 2. **Hashtag-Based Refinement**: Allows users to narrow results using partial details or key terms.
@@ -59,7 +69,7 @@ FrameFinderLE overcomes these challenges by:
 6. **VideoID and Timestamp Filters**: Helps users find adjacent frames when searching for specific moments in video clips.
 7. **Multi-Modal Search**: Supports text queries, hashtags, and combinations for flexible searching.
 
-### 🐳 GRAFA Retrieval Mechanism
+### 🐳GRAFA Retrieval Mechanism
 The Dynamic Hashtag Exploration in GRAFA is a graph-based retrieval mechanism that discovers and ranks keyframes based on relationships between hashtags. Here's how it works:
 1. Hashtag Exploration:
    - Query Initialization: Starts with the provided query hashtags and their embeddings.
@@ -74,7 +84,7 @@ The Dynamic Hashtag Exploration in GRAFA is a graph-based retrieval mechanism th
 5. Keyframe Ranking:
    - Normalizes scores and ranks the top keyframes based on their final scores, retrieving the most relevant frames.
   
-### 🐳 Immediate Feedback System
+### 🐳Immediate Feedback System
 The Immediate Feedback System provides rapid refinement of search results based on user interactions in the current session.
 1. Feedback Processing: Converts user feedback (likes, dislikes) into binary representation and uses pre-encoded frame representations for similarity calculations.
 2. Score Adjustment: Adjusts scores based on feedback, increasing for similar liked items and decreasing for similar disliked items.
@@ -82,14 +92,14 @@ The Immediate Feedback System provides rapid refinement of search results based 
 4. Real-time Updates: Scores update immediately after each feedback interaction.
 5. Final Refinement: The refined results are re-sorted and returned.
 
-### 🐳 Aggregated Feedback System
+### 🐳Aggregated Feedback System
 The Aggregated Feedback System refines searches by incorporating historical feedback for long-term personalized results.
 1. Feedback Processing: Converts feedback into a binary form and applies a time-weighted decay factor for recent interactions.
 2. Score Adjustment: Adjusts scores based on the feedback factor, balancing exploration with exploitation.
 3. Time-Sensitive Refinement: Recent feedback has more influence, adapting to changing preferences.
 4. Final Refinement: Combines adjusted scores with original relevance for re-ranked results.
 
-## ⚡ Directory Structure ⚡
+## ⚡Directory Structure
 
 ```
 /FrameFinderLE/
@@ -178,9 +188,9 @@ The Aggregated Feedback System refines searches by incorporating historical feed
 └── requirements.txt
 ```
 
-## ⚡ Usage ⚡
+## ⚡Usage
 
-### 🐳 How to start the application
+### 🐳How to start the application
 
 1. Running the Application with Docker (via Docker Hub)
 - Prerequisites: Install Docker on your machine.
@@ -245,19 +255,64 @@ Open your browser and navigate to:
 http://localhost:8000
 ```
 
-### 🐳 Database preparation
+### 🐳Database preparation
 [Updating...]
 
-### 🐳 DEMO video
-[Updating...]
+### 🐳DEMO video
+You can see a demo of FrameFinderLE here:
+👉 DEMO Video Link [Updating...]
 
-### 🐳 Google colab demo
-[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/ThuyHaLE/FrameFinderLE/blob/main/app_notebook.ipynb#scrollTo=2PHZE_QQXkfx)
+### 🐳Google colab demo
+A Colab demo is also available here [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/ThuyHaLE/FrameFinderLE/blob/main/app_notebook.ipynb#scrollTo=2PHZE_QQXkfx) to test the model without local setup.
 
-## ⚡ Contributing ⚡
+## ⚡Valuation Metrics
+I evaluate the system based on the following metrics in both cases:
 
-[Updating]
+- **Relevance**: The degree of relevance of the returned results to the user's query.
+- **User Feedback**: User interaction with the results through Like and Dislike.
+- **Top-k Relevance**: The relevance of the results in the Top 1 and Top 5 to the query.
+- **Query Length**: Classification of queries by length: Single Sentence Query and Multiple Sentence Query.
+  - Single Sentence Queries: A complete sentence (e.g., "A person running on the beach").
+  - Multiple Sentence Queries: A longer input consisting of multiple related or unrelated sentences (e.g., "A person running on the beach. The sky is clear, and the waves are calm.").
 
-## ⚡ License ⚡
+I will divide the results into two cases:
+
+## 1. Default Case
+
+In this case, the user performs a query and receives results without any interaction. Metrics are collected based solely on the default results from the system.
+
+| Query Type         | Mode             | Average Top 1 Relevance | Average Top 5 Relevance | User Feedback (Like %) | User Feedback (Dislike %) |
+|--------------------|------------------|-------------------------|-------------------------|------------------------|---------------------------|
+| Single Sentence    | Query-Only       | ?                   | ?                   | ?%                     | ?%                        |
+| Single Sentence    | Query + Hashtags | ?                   | ?                   | ?%                     | ?%                        |
+| Multiple Sentences | Query-Only       | ?                   | ?                   | ?%                     | ?%                        |
+| Multiple Sentences | Query + Hashtags | ?                   | ?                   | ?%                     | ?%                        |
+
+## 2. Interactive Case
+
+In this case, the user interacts with the results returned by the system by clicking Like or Dislike. After each interaction, the system adjusts the results to better align with the user's preferences. The metrics in the table below will track user interactions and changes in results.
+
+| Query Type         | Mode             | Average Top 1 Relevance | Average Top 5 Relevance | User Feedback (Like %) | User Feedback (Dislike %) |
+|--------------------|------------------|-------------------------|-------------------------|------------------------|---------------------------|
+| Single Sentence    | Query-Only       | ?                   | ?                   | ?%                    | ?%                       |
+| Single Sentence    | Query + Hashtags | ?                   | ?                   | ?%                    | ?%                       |
+| Multiple Sentences | Query-Only       | ?                   | ?                   | ?%                    | ?%                       |
+| Multiple Sentences | Query + Hashtags | ?                   | ?                   | ?%                    | ?%                       |
+
+Note: The queries and hashtags used in these experiments are fixed across all trials. This means that every experiment uses the same [set of queries](https://github.com/ThuyHaLE/FrameFinderLE/blob/main/diagram/FrameFinderLE_diagram.png), ensuring that evaluations based on the feedback from a single user are meaningful and comparable. Keeping these factors constant helps minimize variability in the results and allows for accurate comparisons between different methods.
+
+## ⚡Limitations
+
+- **Lack of Comparison Between VLM Versions**: The system currently uses the LLava model to extract data, but there is no comparison with other VLM models. This may affect the quality of the results when queries do not match the idea in the database.
+- **Keyframe Quality**: The quality of keyframes extracted from videos may affect the final results, as they are extracted using the Pysence detect method.
+- **Vietnamese Language Support**: The system does not fully support Vietnamese, which may impact the quality of processing queries in Vietnamese.
+- **Limited Comparison Based on Default Hashtags**: Hashtags are automatically generated from the query, and users can edit them. However, we currently only compare the results using the default set of hashtags, without considering any user modifications.
+- **Evaluation with a Single User**: Although the results are currently evaluated based on a single user, we acknowledge that results may vary with multiple users. This will be an important factor when evaluating the system's effectiveness in a real-world environment.
+
+## ⚡Contributing
+
+We welcome ideas, testing, or discussions. Please open an issue or pull request.
+
+## ⚡License
 
 This project is licensed under the Apache License 2.0 - see the [LICENSE](https://github.com/ThuyHaLE/FrameFinderLE/blob/main/LICENSE) file for details.
