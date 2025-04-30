@@ -1,6 +1,7 @@
 # ⚡FrameFinderLE⚡
+**FrameFinderLE** is an intelligent frame retrieval system that helps users search for images and videos based on imperfect memory. By combining CLIP with a hashtag graph mechanism and user feedback, the system can understand and handle vague, incomplete queries, much like how humans recall visual content.
 
-FrameFinderLE is an advanced image and video frame retrieval system that improves real-world memory-driven search tasks. Originally inspired by the challenge of visual information retrieval in noisy, fragmented queries (e.g., user memory recall), it enhances CLIP with hashtag graphs and human-in-the-loop feedback mechanisms.
+Originally developed to address the challenge of retrieving visual information from unclear and fragmented queries (e.g., human memory), FrameFinderLE enhances the capabilities of CLIP with a hashtag graph and a human-in-the-loop feedback mechanism.
 
 ## ⚡Table of Contents
 - [Project information](#project-information)
@@ -184,8 +185,16 @@ The Aggregated Feedback System refines searches by incorporating historical feed
 
 ## ⚡Usage
 
-### 🐳How to start the application
+### 🐳 System Requirements
+- **Operating System:** Windows 10/11, MacOS, or Linux
+- **CPU:** Minimum 4 cores (8+ cores recommended for better performance)
+- **RAM:** Minimum 8GB (16GB+ recommended)
+- **Storage:** At least 10GB for database and installation
+- **Python:** Python 3.9 or higher
+- **Internet Connection:** Required to download database files
+> **Note:** FrameFinderLE is optimized to run on a regular CPU and does not require a GPU.
 
+### 🐳How to start the application
 1. Running the Application with Docker (via Docker Hub)
 - Prerequisites: Install Docker on your machine.
 - Steps:
@@ -293,7 +302,7 @@ Although the demo does not showcase the refined system based on user feedback, F
 ### 🐳Google colab demo
 A Colab demo is also available [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/ThuyHaLE/FrameFinderLE/blob/main/app_notebook.ipynb#scrollTo=2PHZE_QQXkfx) to test the model without local setup.
 
-Note: You may need to install NLTK and download the 'punkt' dataset to avoid errors.
+> **Note:** You may need to install NLTK and download the 'punkt' dataset to avoid errors.
 ```
 import nltk
 nltk.download('punkt_tab')
