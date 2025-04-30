@@ -2,11 +2,6 @@
 
 FrameFinderLE is an advanced image and video frame retrieval system that improves real-world memory-driven search tasks. Originally inspired by the challenge of visual information retrieval in noisy, fragmented queries (e.g., user memory recall), it enhances CLIP with hashtag graphs and human-in-the-loop feedback mechanisms.
 
-## ⚡Project information
-- Development time: ~2 months (25/07/2024 - 29/09/2024) 
-- Main technologies: Python, FastAPI, CLIP, FAISS, Docker, PyTorch, Graph-based Retrieval
-- Data source: from Ho Chi Minh City Artificial Intelligence Challenge (AI Challenge) 2024. 
-
 ## ⚡Table of Contents
 - [Project information](#project-information)
 - [Motivation and Contribution](#motivation-and-contribution)
@@ -18,6 +13,11 @@ FrameFinderLE is an advanced image and video frame retrieval system that improve
 - [Limitations](#limitations)
 - [Contributing](#contributing)
 - [License](#license)
+
+## ⚡Project information
+- Development time: ~2 months (25/07/2024 - 29/09/2024) 
+- Main technologies: Python, FastAPI, CLIP, FAISS, Docker, PyTorch, Graph-based Retrieval
+- Data source: from [the Ho Chi Minh City Artificial Intelligence Challenge (AI Challenge) 2024](https://aichallenge.hochiminhcity.gov.vn/). 
 
 ## ⚡Motivation and Contribution
 
@@ -259,15 +259,15 @@ http://localhost:8000
     - Total duration in (h:m:s): 103:25:09
     - Total size of the folder is: 45.64 GB
 - Data preprocessing:
-  - Keyframes extracting from video using scenedetect (ContentDetector) - Execution time (h:m:s): 30:15:22
+  - Keyframes extracted from video using scenedetect (ContentDetector) - Execution time (h:m:s): 30:15:22
   - Keyframes encoding using CLIP (ViT-B/32) - Execution time (h:m:s): 6:30:13
   - Caption and hash-tag extracting from keyframes using LLava-v1.5-13b-3GB - Execution time (h:m:s): 779:42:10
-  - Caption and hash-tag list spliting and processing from text-output of LLava - Execution time (h:m:s): 52:55:17
+  - Caption and hash-tag list splitting and processing from text-output of LLava - Execution time (h:m:s): 52:55:17
   - Captions encoding using CLIP (ViT-B/32) - Execution time (h:m:s): 22:0:39
-  - Unique hash-tags encoding using CLIP (ViT-B/32) - Execution time (h:m:s):  1:1:39
-  - GRAFA buiding using caption and hash-tag list - Execution time (h:m:s):  1:3:32
+  - Unique hashtags encoding using CLIP (ViT-B/32) - Execution time (h:m:s):  1:1:39
+  - GRAFA building using caption and hash-tag list - Execution time (h:m:s):  1:3:32
 - Database output:
-  - Reduced keyframes folder (convert to .webp for lightweigt version)
+  - Reduced keyframes folder (convert to .webp for lightweight version)
   - FAISS (HNSWFlat) database includes FAISS_v0 database (Encoded frames only) and FAISS_v2 database (Encoded frames + Captions)
   - GRAFA database
   - List of all unique hashtag embeddings
@@ -325,7 +325,7 @@ In this case, the user interacts with the results returned by the system by clic
 | Multiple Sentences | Query-Only       | ?                   | ?                   | ?%                    | ?%                       |
 | Multiple Sentences | Query + Hashtags | ?                   | ?                   | ?%                    | ?%                       |
 
-Note: The queries and hashtags used in these experiments are fixed across all trials. This means that every experiment uses the same [set of queries](https://github.com/ThuyHaLE/FrameFinderLE/blob/main/diagram/FrameFinderLE_diagram.png), ensuring that evaluations based on the feedback from a single user are meaningful and comparable. Keeping these factors constant helps minimize variability in the results and allows for accurate comparisons between different methods.
+Note: The queries and hashtags used in these experiments are fixed across all trials. This means that every experiment uses the same [set of queries](https://github.com/ThuyHaLE/FrameFinderLE/tree/main/valuation), ensuring that evaluations based on the feedback from a single user are meaningful and comparable. Keeping these factors constant helps minimize variability in the results and allows for accurate comparisons between different methods.
 
 ## ⚡Limitations
 
