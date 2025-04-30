@@ -351,12 +351,12 @@ Note: The queries and hashtags used in these experiments are fixed across all tr
 - **Lack of Comparison Between VLM Versions**: The system currently uses the LLava model to extract data, but there is no comparison with other VLM models. This may affect the quality of the results when queries do not match the idea in the database.
 - **Keyframe Quality**: The quality of keyframes extracted from videos may affect the final results, as they are extracted using the Pysence detect method.
 - **Vietnamese Language Support**: The system does not fully support Vietnamese, which may impact the quality of processing queries in Vietnamese.
-- **Limited Comparison Based on Default Hashtags**: Hashtags are automatically generated from the query, and users can edit them. However, we currently only compare the results using the default set of hashtags, without considering any user modifications.
-- **Evaluation with a Single User**: Although the results are currently evaluated based on a single user, we acknowledge that results may vary with multiple users. This will be an important factor when evaluating the system's effectiveness in a real-world environment.
+- **Limited Comparison Based on Default Hashtags**: Hashtags are automatically generated from the query, and users can edit them. However, I currently only compare the results using the default set of hashtags, without considering any user modifications.
+- **Evaluation with a Single User**: Although the results are currently evaluated based on a single user, I acknowledge that results may vary with multiple users. This will be an important factor when evaluating the system's effectiveness in a real-world environment.
 
 ## ⚡Contributing
 
-We welcome ideas, testing, or discussions. Please open an issue or pull request.
+I welcome ideas, testing, or discussions. Please open an issue or pull request.
 
 ## ⚡License
 
