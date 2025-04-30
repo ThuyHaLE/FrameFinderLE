@@ -18,12 +18,18 @@ FrameFinderLE is designed to overcome CLIP's limitations in noisy environments b
 - VideoID and Timestamp filtering for precise search
 
 ## 🎬 Demo
-[Updating...]
-![FrameFinderLE Demo](https://github.com/ThuyHaLE/FrameFinderLE/blob/main/assets/demo.gif)
+Although the demo does not showcase the refined system based on user feedback, FrameFinderLE allows users to interact with the retrieved images through Like and Dislike buttons on each image in the results. These feedbacks are used to refine the search results, enhancing the system's accuracy and better aligning it with user preferences. As users provide feedback, the system dynamically adjusts the search results to reflect these interactions, continuously optimizing the retrieval process.
+
+![FrameFinderLE Demo](https://github.com/ThuyHaLE/FrameFinderLE/blob/main/FrameFinderLE-Demo-compressed.gif)
 
 ## ⚙️ Quickstart
 ### Try it on Google Colab
 [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/ThuyHaLE/FrameFinderLE/blob/main/app_notebook.ipynb#scrollTo=2PHZE_QQXkfx)
+Note: You may need to install NLTK and download the 'punkt' dataset to avoid errors.
+```
+import nltk
+nltk.download('punkt_tab')
+```
 
 ### Run with Docker
 ```bash
