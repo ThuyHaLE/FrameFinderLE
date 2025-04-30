@@ -260,7 +260,7 @@ http://localhost:8000
     - Total size of the folder is: 45.64 GB
 - Data preprocessing:
   - Keyframes extracting from video using scenedetect (ContentDetector) - Execution time (h:m:s): 30:15:22
-  - Keyframes encoding using CLIP (ViT-B/32)
+  - Keyframes encoding using CLIP (ViT-B/32) - Execution time (h:m:s): 6:30:13
   - Caption and hash-tag extracting from keyframes using LLava-v1.5-13b-3GB - Execution time (h:m:s): 779:42:10
   - Caption and hash-tag list spliting and processing from text-output of LLava - Execution time (h:m:s): 52:55:17
   - Captions encoding using CLIP (ViT-B/32) - Execution time (h:m:s): 22:0:39
