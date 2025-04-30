@@ -343,7 +343,7 @@ In this case, the user interacts with the results returned by the system by clic
 | Multiple Sentences | Query-Only       | ?                   | ?                   | ?%                    | ?%                       |
 | Multiple Sentences | Query + Hashtags | ?                   | ?                   | ?%                    | ?%                       |
 
-Note: The queries and hashtags used in these experiments are fixed across all trials. This means that every experiment uses the same [set of queries](https://github.com/ThuyHaLE/FrameFinderLE/tree/main/valuation), ensuring that evaluations based on the feedback from a single user are meaningful and comparable. Keeping these factors constant helps minimize variability in the results and allows for accurate comparisons between different methods.
+> **Note:** The queries and hashtags used in these experiments are fixed across all trials. This means that every experiment uses the same [set of queries](https://github.com/ThuyHaLE/FrameFinderLE/tree/main/valuation), ensuring that evaluations based on the feedback from a single user are meaningful and comparable. Keeping these factors constant helps minimize variability in the results and allows for accurate comparisons between different methods.
 
 ## ⚡Limitations
 
