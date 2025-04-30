@@ -267,11 +267,11 @@ http://localhost:8000
   - Unique hashtags encoding using CLIP (ViT-B/32) - Execution time (h:m:s):  1:1:39
   - GRAFA building using caption and hash-tag list - Execution time (h:m:s):  1:3:32
 - Database output:
-  - Reduced keyframes folder (convert to .webp for lightweight version)
+  - The reduced keyframes folder (converted to .webp for a lighter version) contains a total of 220,204 frames
   - FAISS (HNSWFlat) database includes FAISS_v0 database (Encoded frames only) and FAISS_v2 database (Encoded frames + Captions)
   - GRAFA database
   - List of all unique hashtag embeddings
-  - Frame information mapping (annotation).
+  - Frame information mapping (annotation)
   ```
   Ex: {
   "frame_ID":int0,
@@ -284,14 +284,24 @@ http://localhost:8000
   ```
   
 
-### 🐳DEMO video
-You can see a demo of FrameFinderLE here:
-👉 DEMO Video Link [Updating...]
+### 🐳FrameFinderLE Demo
+
+Although the demo does not showcase the refined system based on user feedback, FrameFinderLE allows users to interact with the retrieved images through Like and Dislike buttons on each image in the results. These feedbacks are used to refine the search results, enhancing the system's accuracy and better aligning it with user preferences. As users provide feedback, the system dynamically adjusts the search results to reflect these interactions, continuously optimizing the retrieval process.
+
+![FrameFinderLE Demo](https://github.com/ThuyHaLE/FrameFinderLE/blob/main/FrameFinderLE-Demo-compressed.gif)
 
 ### 🐳Google colab demo
-A Colab demo is also available here [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/ThuyHaLE/FrameFinderLE/blob/main/app_notebook.ipynb#scrollTo=2PHZE_QQXkfx) to test the model without local setup.
+A Colab demo is also available [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/ThuyHaLE/FrameFinderLE/blob/main/app_notebook.ipynb#scrollTo=2PHZE_QQXkfx) to test the model without local setup.
+
+Note: You may need to install NLTK and download the 'punkt' dataset to avoid errors.
+```
+import nltk
+nltk.download('punkt_tab')
+```
 
 ## ⚡Valuation Metrics
+[Updating...]
+
 I evaluate the system based on the following metrics in both cases:
 
 - **Relevance**: The degree of relevance of the returned results to the user's query.
