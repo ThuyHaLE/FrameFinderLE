@@ -1,29 +1,23 @@
 # ⚡FrameFinderLE⚡
 
-FrameFinderLE is an advanced image and video frame retrieval system that improves real-world memory-driven search tasks. Originally inspired by the challenge of visual information retrieval in noisy, fragmented queries (e.g., user memory recall), it enhances CLIP with hashtag graphs and human-in-the-loop feedback mechanisms.   
+FrameFinderLE is an advanced image and video frame retrieval system that improves real-world memory-driven search tasks. Originally inspired by the challenge of visual information retrieval in noisy, fragmented queries (e.g., user memory recall), it enhances CLIP with hashtag graphs and human-in-the-loop feedback mechanisms.
+
+## ⚡Project information
+- Development time: ~2 months (25/07/2024 - 29/09/2024) 
+- Main technologies: Python, FastAPI, CLIP, FAISS, Docker, PyTorch, Graph-based Retrieval
+- Data source: from Ho Chi Minh City Artificial Intelligence Challenge (AI Challenge) 2024. 
 
 ## ⚡Table of Contents
-- [FrameFinderLE](#framefinderle)
-  - [Table of Contents](#table-of-contents)
-  - [Motivation and Contribution](#motivation-and-contribution)
-    - [Problem Addressed](#problem-addressed)
-    - [My Solution](#my-solution)
-    - [Key Contributions](#key-contributions)
-  - [System Overview](#system-overview)
-  - [Key Features](#key-features)
-    - [GRAFA Retrieval Mechanism](#grafa-retrieval-mechanism)
-    - [Immediate Feedback System](#immediate-feedback-system)
-    - [Aggregated Feedback System](#aggregated-feedback-system)
-  - [Directory Structure](#directory-structure)
-  - [Usage](#usage)
-    - [How to start the application](#how-to-start-the-application)
-    - [DEMO video](#demo-video)
-    - [Database preparation](#database-preparation)
-    - [Google colab demo](#google-colab-demo)
-  - [Valuation metrics](#valuation-metrics)
-  - [Limitations](#limitations)
-  - [Contributing](#contributing)
-  - [License](#license)
+- [Project information](#project-information)
+- [Motivation and Contribution](#motivation-and-contribution)
+- [System Overview](#system-overview)
+- [Key Features](#key-features)
+- [Directory Structure](#directory-structure)
+- [Usage](#usage)
+- [Valuation metrics](#valuation-metrics)
+- [Limitations](#limitations)
+- [Contributing](#contributing)
+- [License](#license)
 
 ## ⚡Motivation and Contribution
 
@@ -256,7 +250,39 @@ http://localhost:8000
 ```
 
 ### 🐳Database preparation
-[Updating...]
+- Data source: from Ho Chi Minh City Artificial Intelligence Challenge (AI Challenge) 2024. [Available here](https://docs.google.com/spreadsheets/d/1mO3zS79L1HMLZ-BLpyy8E-n9RROOElms5DS_Gi1gKiU/edit?gid=0#gid=0)
+- The data includes Videos, Keyframes, Metadata, Map Keyframe, and CLIP features (ViT-B/32), but I only use their videos (363 videos released on 19/08/2024 and 363 videos released on 17/09/2024) as my database.
+  - 363 videos released on 19/08/2024:
+    - Total duration in (h:m:s): 121:14:52
+    - Total size of the folder is: 62.34 GB
+  - 363 videos released on 17/09/2024:
+    - Total duration in (h:m:s): 103:25:09
+    - Total size of the folder is: 45.64 GB
+- Data preprocessing:
+  - Keyframes extracting from video using scenedetect (ContentDetector) - Execution time (h:m:s): 30:15:22
+  - Keyframes encoding using CLIP (ViT-B/32)
+  - Caption and hash-tag extracting from keyframes using LLava-v1.5-13b-3GB - Execution time (h:m:s): 779:42:10
+  - Caption and hash-tag list spliting and processing from text-output of LLava - Execution time (h:m:s): 52:55:17
+  - Captions encoding using CLIP (ViT-B/32) - Execution time (h:m:s): 22:0:39
+  - Unique hash-tags encoding using CLIP (ViT-B/32) - Execution time (h:m:s):  1:1:39
+  - GRAFA buiding using caption and hash-tag list - Execution time (h:m:s):  1:3:32
+- Database output:
+  - Reduced keyframes folder (convert to .webp for lightweigt version)
+  - FAISS (HNSWFlat) database includes FAISS_v0 database (Encoded frames only) and FAISS_v2 database (Encoded frames + Captions)
+  - GRAFA database
+  - List of all unique hashtag embeddings
+  - Frame information mapping (annotation).
+  ```
+  Ex: {
+  "frame_ID":int0,
+  "frame_path":string"./0000000_0.0.jpg",
+  "video_ID":string"L01_V001",
+  "timestamp":string"0:00:00",
+  "caption_text":string"The image features a city skyline at sunset, with a large white circle in the foreground. The circle has the word "GIAY" written on it, and the sun is setting behind the cityscape.",
+  "hashtag_list":list["#sunset", "#architecture", #sunrise", "#landscape", "#cityskyline", "#foreground", "#cityscape", "#beautiful", "#image", "#citylights", "#reflection", "#word", "#largewhitecircle", "#waterfront", "#giay", "#urban"]
+  }
+  ```
+  
 
 ### 🐳DEMO video
 You can see a demo of FrameFinderLE here:
