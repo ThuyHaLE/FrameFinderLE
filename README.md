@@ -2,6 +2,9 @@
 
 > An advanced memory-driven image & video frame retrieval system, enhancing CLIP with hashtag graphs and human feedback.
 
+## 🛠 Recent Updates  
+- **(2025-05)** Added **Weighted Exploration Adjustment**: Dynamically expands top-k based on score statistics to avoid local minima during refinement.
+
 ## 🚀 Project Overview
 - **Timeline**: 25/07/2024 - 29/09/2024
 - **Tech Stack**: Python, FastAPI, CLIP, FAISS, Docker, Graph Retrieval
@@ -11,12 +14,16 @@
 FrameFinderLE is designed to overcome CLIP's limitations in noisy environments by leveraging graph-based hashtag expansion and dynamic user feedback.
 
 ## 🔥 Key Features
-- Graph-based hashtag expansion (GRAFA)
-- Dual Feedback: Real-time and Historical learning
-- Frame-to-frame similarity adjustment
-- Multi-modal search: Text, Hashtag, Image queries
-- VideoID and Timestamp filtering for precise search
-
+- **Graph-based hashtag expansion (GRAFA)**
+- **Dual Feedback**: Real-time and Historical learning
+- **Frame-to-frame similarity adjustment**
+- **Multi-modal search**: Text, Hashtag, Image queries
+- **VideoID and Timestamp filtering for precise search**
+- ⚖️ **Weighted Exploration Adjustment** (New)  
+  *Dynamically adjusts the size of the top-k result set based on the distribution of similarity scores.  
+  Prevents refinement from being trapped in suboptimal initial results by expanding the search scope only when statistically justified.  
+  Enhances robustness without changing the user-visible result size.*
+  
 ## 🎬 Demo
 Although the demo does not showcase the refined system based on user feedback, FrameFinderLE allows users to interact with the retrieved images through Like and Dislike buttons on each image in the results. These feedbacks are used to refine the search results, enhancing the system's accuracy and better aligning it with user preferences. As users provide feedback, the system dynamically adjusts the search results to reflect these interactions, continuously optimizing the retrieval process.
 
