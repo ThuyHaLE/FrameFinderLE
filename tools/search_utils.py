@@ -10,6 +10,7 @@ from tools.results_display import display_option_results, get_keyframes, get_key
 from tools.utils import re_ranking
 from database.db_init import faiss_database_processing
 from tools.graph_based_image_retrieval import retrieve_by_hashtags
+from tools.calculate_weighted_exploration import calculate_weighted_exploration
 
 import clip
 
@@ -172,6 +173,22 @@ def cached_results(query_text: str, hiddenHashtags: str,
       refined_scores, refined_indexes = re_ranking(distances_hnsw, indices_hnsw,
                                                    graph_scores, graph_indices,
                                                    k_num=k, boost_amount = 2)
+
+      # Decide whether to expand the top-k
+      should_expand, k_new = calculate_weighted_exploration(refined_scores, k)
+      
+      if should_expand:
+        # Re-run the query with k_new and return top k results
+        logger.info("Expanding the search scope to improve the results...")
+        distances_hnsw, indices_hnsw = k_image_search(query_vector, index_hnsw, device, k_nums=k_new)
+        graph_scores, graph_indices = retrieve_by_hashtags(sparse_matrix, node_mapping, reverse_node_mapping, G,
+                                                          hashtags_list, hashtag_embeddings, hashtag_index, clip, device, model,
+                                                          k_num=k_new, max_depth=5, alpha=0.7, similarity_num = 10,
+                                                          min_score_threshold=0.01, max_keyframes=10000, max_iterations=10000)
+        refined_scores, refined_indexes = re_ranking(distances_hnsw, indices_hnsw,
+                                                    graph_scores, graph_indices,
+                                                    k_num=k, boost_amount = 2)
+
       #Filter and Display Results
       results = display_option_results(display_option,
                                        refined_scores, refined_indexes,
