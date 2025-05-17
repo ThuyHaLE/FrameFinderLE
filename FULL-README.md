@@ -3,6 +3,9 @@
 
 Originally developed to address the challenge of retrieving visual information from unclear and fragmented queries (e.g., human memory), FrameFinderLE enhances the capabilities of CLIP with a hashtag graph and a human-in-the-loop feedback mechanism.
 
+## 🛠Recent Updates  
+- **(2025-05)** Added **Weighted Exploration Adjustment**: Dynamically expands top-k based on score statistics to avoid local minima during refinement.
+  
 ## ⚡Table of Contents
 - [Project information](#project-information)
 - [Motivation and Contribution](#motivation-and-contribution)
@@ -63,36 +66,58 @@ FrameFinderLE overcomes these challenges by:
 5. **Relevant Lookup Feature**: Enables new searches based on any result image, creating a more interactive and personalized experience.
 6. **VideoID and Timestamp Filters**: Helps users find adjacent frames when searching for specific moments in video clips.
 7. **Multi-Modal Search**: Supports text queries, hashtags, and combinations for flexible searching.
-
+8. **⚖️ Weighted Exploration Adjustment (New)**: This function determines whether to expand the number of top-k retrieved results based on the distribution of similarity scores. Since the refinement process always operates within the current top-k results, ensuring that the initial top-k is sufficiently reliable helps prevent the refinement from getting stuck in a narrow local optimum. If the initial top-k results show low confidence or little variability, the function suggests expanding top-k to provide a broader and more meaningful search space for subsequent refinement.
+   
 ### 🐳GRAFA Retrieval Mechanism
 The Dynamic Hashtag Exploration in GRAFA is a graph-based retrieval mechanism that discovers and ranks keyframes based on relationships between hashtags. Here's how it works:
-1. Hashtag Exploration:
+1. ***Hashtag Exploration***:
    - Query Initialization: Starts with the provided query hashtags and their embeddings.
    - Graph Traversal: The hashtag co-occurrence graph is traversed to explore neighboring hashtags, capturing broader context while maintaining focus on relevant terms.
-2. Scoring System:
+2. ***Scoring System***:
    - Hybrid Score Calculation: Combines neighbor frequency and path length to score hashtags.
    - Logarithmic Path Adjustment: Prevents score inflation from repetitive paths by logarithmic scaling.
-3. Dynamic Exploration:
+3. ***Dynamic Exploration***:
    - Prioritizes hashtags with scores above the mean and adjusts exploration depth based on relevance.
-4. Stopping Criteria:
+4. ***Stopping Criteria***:
    - Stops exploration based on reaching a defined number of keyframes, iterations, or a score threshold.
-5. Keyframe Ranking:
+5. ***Keyframe Ranking***:
    - Normalizes scores and ranks the top keyframes based on their final scores, retrieving the most relevant frames.
+
+### 🐳The Weighted Exploration Adjustment 
+This function dynamically determines whether to expand the top-k retrieval results based on the distribution of similarity scores from the current refined results. It aims to balance exploration and exploitation to improve retrieval quality.
+1. ***Score Analysis***:
+- Mean Score Evaluation: Calculates the average similarity score across initial results to assess overall relevance.
+- Standard Deviation Assessment: Determines score distribution variance to identify result set consistency.
+- Interpretation of Scores:
+     - Low Mean & Low Std Dev: Indicates uniformly poor similarity scores, suggesting that the current top-k results are not reliable. Triggers a significant expansion of top-k to explore a wider set of candidates.
+     - High Std Dev: Indicates diverse similarity scores, allowing a more focused search with limited or no expansion.
+     - Moderate Cases: Adjusts exploration proportionally to the inverse of the mean similarity score.
+2. ***Dynamic Top-k Expansion***:
+- Uses a weighted exploration ratio based on score statistics to propose a new top-k size, capped by a maximum expansion factor.
+- Refinement Scope: Since refinement always operates within the top-k results, starting with a sufficiently reliable top-k set prevents the system from getting trapped in local optima during refinement iterations.
+3. ***Implementation Benefits***:
+- Resource Optimization: Expands search depth only when statistically justified, preserving system performance.
+- Breaking Free from Local Maxima: Addresses the fundamental limitation of refinement systems that can only refine within the initially retrieved set by ensuring this initial set is sufficiently diverse and high quality.
+- Result Quality Assurance: Prevents user frustration by automatically compensating for inadequate initial retrievals.
+- Transparent Processing: Logs expansion decisions with relevant metrics for system monitoring and continuous improvement.
+- Consistent User Experience: Maintains the user-specified number of results while improving their relevance through behind-the-scenes optimization.
   
+*This adaptive mechanism ensures that the retrieval system flexibly widens or narrows its search scope based on initial result quality, improving overall robustness and user satisfaction. By focusing on optimizing the crucial initial retrieval stage, subsequent refinement operations gain access to a more comprehensive foundation of relevant content, preventing refinement from being trapped in low-quality local maxima when initial results are suboptimal.*
+
 ### 🐳Immediate Feedback System
 The Immediate Feedback System provides rapid refinement of search results based on user interactions in the current session.
-1. Feedback Processing: Converts user feedback (likes, dislikes) into binary representation and uses pre-encoded frame representations for similarity calculations.
-2. Score Adjustment: Adjusts scores based on feedback, increasing for similar liked items and decreasing for similar disliked items.
-3. Similarity-Based Refinement: Scores are weighted by similarity to feedback items.
-4. Real-time Updates: Scores update immediately after each feedback interaction.
-5. Final Refinement: The refined results are re-sorted and returned.
+1. ***Feedback Processing***: Converts user feedback (likes, dislikes) into binary representation and uses pre-encoded frame representations for similarity calculations.
+2. ***Score Adjustment***: Adjusts scores based on feedback, increasing for similar liked items and decreasing for similar disliked items.
+3. ***Similarity-Based Refinement***: Scores are weighted by similarity to feedback items.
+4. ***Real-time Updates***: Scores update immediately after each feedback interaction.
+5. ***Final Refinement***: The refined results are re-sorted and returned.
 
 ### 🐳Aggregated Feedback System
 The Aggregated Feedback System refines searches by incorporating historical feedback for long-term personalized results.
-1. Feedback Processing: Converts feedback into a binary form and applies a time-weighted decay factor for recent interactions.
-2. Score Adjustment: Adjusts scores based on the feedback factor, balancing exploration with exploitation.
-3. Time-Sensitive Refinement: Recent feedback has more influence, adapting to changing preferences.
-4. Final Refinement: Combines adjusted scores with original relevance for re-ranked results.
+1. ***Feedback Processing***: Converts feedback into a binary form and applies a time-weighted decay factor for recent interactions.
+2. ***Score Adjustment***: Adjusts scores based on the feedback factor, balancing exploration with exploitation.
+3. ***Time-Sensitive Refinement***: Recent feedback has more influence, adapting to changing preferences.
+4. ***Final Refinement***: Combines adjusted scores with original relevance for re-ranked results.
 
 ## ⚡Directory Structure
 
