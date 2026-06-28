@@ -125,10 +125,9 @@ class KeyframeFilterRequest(BaseModel):
 # ---------------------------------------------------------------------------
 # Routes
 # ---------------------------------------------------------------------------
-
-@app.get("/")
-def root():
-    return {"status": "ok", "message": "SceneSeek Mock API is running."}
+#@app.get("/")
+#def root():
+#    return {"status": "ok", "message": "SceneSeek Mock API is running."}
 
 
 # --- Search endpoints (Type 1, 2, 3) ---------------------------------------
@@ -254,10 +253,18 @@ def get_data(
         "totalPages": paged["totalPages"],
     }
 
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
+
+# Serve React build
+app.mount("/assets", StaticFiles(directory="sceneseek-frontend/dist/assets"), name="assets")
+
+@app.get("/{full_path:path}")
+def serve_frontend(full_path: str):
+    return FileResponse("sceneseek-frontend/dist/index.html")
 
 # ---------------------------------------------------------------------------
 # Run
 # ---------------------------------------------------------------------------
-
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000, reload=True)
