@@ -253,21 +253,14 @@ def get_data(
         "totalPages": paged["totalPages"],
     }
 
-# ---------------------------------------------------------------------------
-# Serve React production build — CHỈ dùng khi deploy 1 server duy nhất.
-# Hiện tại đang dev với 2 server riêng (Vite :5173 + FastAPI :8000, theo
-# docstring đầu file), nên đoạn này phải comment lại — nếu để nguyên,
-# StaticFiles sẽ raise RuntimeError ngay lúc mount vì `dist/assets` chưa
-# tồn tại (chỉ có sau khi chạy `npm run build`).
-#
-# from fastapi.staticfiles import StaticFiles
-# from fastapi.responses import FileResponse
-#
-# app.mount("/assets", StaticFiles(directory="sceneseek-frontend/dist/assets"), name="assets")
-#
-# @app.get("/{full_path:path}")
-# def serve_frontend(full_path: str):
-#     return FileResponse("sceneseek-frontend/dist/index.html")
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
+
+app.mount("/assets", StaticFiles(directory="sceneseek-frontend/dist/assets"), name="assets")
+
+@app.get("/{full_path:path}")
+def serve_frontend(full_path: str):
+    return FileResponse("sceneseek-frontend/dist/index.html")
 
 # ---------------------------------------------------------------------------
 # Run
