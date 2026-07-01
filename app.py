@@ -1,102 +1,145 @@
 """
-app.py — Mock backend for SceneSeek frontend
-=============================================
-Mục đích: chạy frontend mà KHÔNG cần model CLIP, FAISS hay database thật.
-Toàn bộ dữ liệu trả về đều là mock data được sinh tự động.
+app.py — SceneSeek Backend
+===========================
+Pattern: mỗi route trả 501 khi chưa implement.
+Client (client.js) sẽ catch 501 và tự fallback về mock data ở frontend.
+
+Để "activate" một route:
+1. Implement logic thật bên trong hàm đó.
+2. Xoá dòng `raise NOT_IMPLEMENTED`.
+3. Client sẽ tự nhận ra HTTP 200 và dùng data thật — không cần đổi gì ở frontend.
 
 Chạy:
-    pip install fastapi uvicorn
+    pip install fastapi uvicorn pydantic
     uvicorn app:app --reload --port 8000
-
-Frontend (Vite dev server) cần chạy song song tại port khác (thường 5173).
-Nhớ set `API_BASE = "http://localhost:8000"` trong src/api/client.js
-và đổi `USE_MOCK = false` để dùng backend này thay vì mock ở frontend.
 """
 
 import math
-import random
-import time
+import os
 from typing import Any, Dict, List, Optional
 
 import uvicorn
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 # ---------------------------------------------------------------------------
 # App setup
 # ---------------------------------------------------------------------------
 
-app = FastAPI(title="SceneSeek Mock API", version="0.1.0")
+app = FastAPI(title="SceneSeek API", version="0.1.0")
 
-# Cho phép Vite dev server (port 5173) hoặc bất kỳ origin nào gọi API.
-# Khi deploy production thì thu hẹp lại.
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["*"],   # thu hẹp lại khi deploy production
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
 # ---------------------------------------------------------------------------
-# In-memory stores (thay thế app.state.FEEDBACK_STORE)
+# Shared exception — dùng cho mọi route chưa implement
 # ---------------------------------------------------------------------------
 
-FEEDBACK_STORE: Dict[str, Any] = {}      # { session_id: { db_idx: action } }
-TEMP_FEEDBACK_STORE: Dict[str, Any] = {} # tạm thời trước khi commit
+NOT_IMPLEMENTED = HTTPException(
+    status_code=501,
+    detail="Route chưa được implement. Frontend sẽ tự fallback về mock data.",
+)
 
 # ---------------------------------------------------------------------------
-# Mock data helpers
+# Helpers
 # ---------------------------------------------------------------------------
 
-VIDEO_IDS = [f"L{str(l).zfill(2)}_V{str(v).zfill(3)}" for l in range(1, 4) for v in range(1, 6)]
+def parse_timestamp(ts: str) -> float:
+    """
+    Parse timestamp string → seconds (float).
+    Accepts:
+        '0:00:08.300000'   annotation format
+        '00:08:30'         hh:mm:ss (paste từ video player)
+        '00:08:30.500'     hh:mm:ss.SSS
+        '0:08'             hh:mm (không có giây)
+    """
+    try:
+        parts = ts.strip().split(":")
+        h = int(parts[0])
+        m = int(parts[1])
+        s = float(parts[2]) if len(parts) > 2 else 0.0
+        return h * 3600 + m * 60 + s
+    except Exception:
+        return 0.0
 
 
-def make_mock_result(db_idx: int, video_id: Optional[str] = None, score: float = 1.0) -> dict:
-    """Tạo một frame result giả."""
-    vid = video_id or random.choice(VIDEO_IDS)
-    frame_num = db_idx * 24  # giả sử 24fps
-    return {
-        "db_idx": db_idx,
-        "video_id": vid,
-        "frame_id": f"F{str(db_idx).zfill(4)}",
-        "timestamp": round(frame_num / 24.0, 3),
-        # Dùng placehold.co cho thumbnail — không cần ảnh thật
-        "thumbnail": f"https://placehold.co/320x180/1a1a2e/ffffff?text={vid}%0AF{db_idx}",
-        "description": f"[Mock] Frame {db_idx} từ video {vid}. Mô tả cảnh giả cho mục đích test UI.",
-        "score": round(score, 4),
-        "feedback": None,
-    }
+def build_thumbnail_url(frame_path: str) -> str:
+    """
+    'key_frame_folder_videos-l13/keyframe_L13_V001/0000207_8.3.jpg'
+    → '/static/images/key_frame_folder_reduced/key_frame_folder_videos-l13_reduced/keyframe_L13_V001/0000207_8.3.webp'
+    """
+    folder, rest = frame_path.split("/", 1)
+    new_path = f"{folder}_reduced/{rest}".replace(".jpg", ".webp")
+    return f"/static/images/key_frame_folder_reduced/{new_path}"
 
-
-def paginate(items: list, page: int, per_page: int) -> dict:
-    total = len(items)
-    total_pages = max(1, math.ceil(total / per_page))
-    page = max(1, min(page, total_pages))
-    start = (page - 1) * per_page
-    return {
-        "items": items[start : start + per_page],
-        "total": total,
-        "totalPages": total_pages,
-        "page": page,
-    }
-
-
-def mock_search_results(k: int = 100) -> List[dict]:
-    """Sinh k kết quả giả, score giảm dần."""
-    results = []
-    for i in range(k):
-        score = max(0.0, 1.0 - i * (1.0 / k))
-        results.append(make_mock_result(db_idx=i + 1, score=score))
-    return results
 
 # ---------------------------------------------------------------------------
-# Request / Response schemas
+# App state — load model/database ở đây khi sẵn sàng
+# ---------------------------------------------------------------------------
+
+# TODO: load jina-clip-v2 encoder
+# TODO: load FAISS index (text-image channel)
+# TODO: load Vietnamese text-embedding model (text-text channel)
+# TODO: load keyword graph
+# TODO: load encoded frames (cho feedback refine)
+
+import json
+
+# Load annotation (~200k items) một lần lúc startup
+_ANNOTATION_PATH = os.path.join(
+    os.getcwd(), "static", "images", "key_frame_folder_reduced",
+    "combined_keyframe_annotation.json"
+)
+with open(_ANNOTATION_PATH, encoding="utf-8") as _f:
+    _raw = json.load(_f)
+
+# Flatten thành list với db_idx, build thumbnail URL ngay lúc load
+# để tránh transform 200k items mỗi request
+_ALL_FRAMES: List[dict] = []
+for _k, _v in _raw.items():
+    _ALL_FRAMES.append({
+        "db_idx": int(_k),
+        **_v,
+        "thumbnail": build_thumbnail_url(_v["frame_path"]),
+    })
+
+# Index theo video_ID để filter O(1) thay vì O(n) linear scan
+_VIDEO_INDEX: Dict[str, List[dict]] = {}
+for _item in _ALL_FRAMES:
+    _VIDEO_INDEX.setdefault(_item["video_ID"], []).append(_item)
+
+app.state.all_frames   = _ALL_FRAMES    # toàn bộ 200k frames
+app.state.video_index  = _VIDEO_INDEX   # { video_ID: [frame, ...] }
+
+app.state.FEEDBACK_STORE: Dict[str, Any] = {}
+
+# ---------------------------------------------------------------------------
+# Static files — keyframe images
+# ---------------------------------------------------------------------------
+
+KEYFRAME_DIR = os.path.join(os.getcwd(), "static", "images", "key_frame_folder_reduced")
+if os.path.isdir(KEYFRAME_DIR):
+    app.mount(
+        "/static/images/key_frame_folder_reduced",
+        StaticFiles(directory=KEYFRAME_DIR),
+        name="key_frame_folder_reduced",
+    )
+
+# ---------------------------------------------------------------------------
+# Schemas
 # ---------------------------------------------------------------------------
 
 class SearchRequest(BaseModel):
-    # Fields chung cho tất cả search type
+    # Type 1 & 3
     query: Optional[str] = None
+    # Type 2
     start_query: Optional[str] = None
     end_query: Optional[str] = None
     # Options
@@ -110,7 +153,7 @@ class SearchRequest(BaseModel):
 
 class FeedbackRequest(BaseModel):
     db_idx: int
-    action: str          # 'like' | 'dislike'
+    action: str        # 'like' | 'dislike' | None
     session_id: str
 
 
@@ -118,152 +161,193 @@ class ProcessQueryRequest(BaseModel):
     query_text: str
 
 
-class KeyframeFilterRequest(BaseModel):
-    pass  # query params thôi
-
-
 # ---------------------------------------------------------------------------
-# Routes
+# Helper
 # ---------------------------------------------------------------------------
-#@app.get("/")
-#def root():
-#    return {"status": "ok", "message": "SceneSeek Mock API is running."}
 
-
-# --- Search endpoints (Type 1, 2, 3) ---------------------------------------
-
-def _handle_search(req: SearchRequest) -> dict:
-    """Logic chung cho cả 3 search type."""
-    pool = mock_search_results(req.k)
-
-    if req.displayOption == "group_by_videoid":
-        # Nhóm theo video_id: sắp xếp stable
-        pool.sort(key=lambda r: r["video_id"])
-
-    paged = paginate(pool, req.page, req.imagesPerPage)
+def paginate(items: list, page: int, per_page: int) -> dict:
+    total = len(items)
+    total_pages = max(1, math.ceil(total / per_page))
+    page = max(1, min(page, total_pages))
+    start = (page - 1) * per_page
     return {
-        "results": paged["items"],
-        "totalImages": paged["total"],
-        "page": paged["page"],
-        "totalPages": paged["totalPages"],
+        "items": items[start: start + per_page],
+        "total": total,
+        "totalPages": total_pages,
+        "page": page,
     }
 
 
+# ---------------------------------------------------------------------------
+# Search routes
+# ---------------------------------------------------------------------------
+
 @app.post("/api/search/frame")
 def search_frame(req: SearchRequest):
-    """Type 1 — Cảnh cụ thể (single query)."""
-    return _handle_search(req)
+    """
+    Type 1 — Cảnh cụ thể.
+    Channel: text-image (query ↔ fused frame embedding).
+    """
+    # TODO:
+    # 1. encode req.query + req.keywords bằng jina-clip-v2 text tower
+    # 2. search FAISS index (text-image channel), lấy top req.k
+    # 3. apply display_option (sort / group)
+    # 4. paginate và trả về
+    raise NOT_IMPLEMENTED
 
 
 @app.post("/api/search/event-boundary")
 def search_event_boundary(req: SearchRequest):
-    """Type 2 — Sự kiện cảnh đầu/cuối."""
-    return _handle_search(req)
+    """
+    Type 2 — Sự kiện cảnh đầu/cuối.
+    Channel: text-image × 2 (start_query + end_query), pair by timestamp.
+    """
+    # TODO:
+    # 1. encode req.start_query và req.end_query riêng biệt
+    # 2. search FAISS 2 lần → top-K start frames, top-K end frames
+    # 3. ghép cặp (start_frame, end_frame) theo ràng buộc ts_start < ts_end
+    # 4. score cặp, paginate, trả về
+    raise NOT_IMPLEMENTED
 
 
 @app.post("/api/search/event-mention")
 def search_event_mention(req: SearchRequest):
-    """Type 3 — Sự kiện được đề cập trong transcript."""
-    return _handle_search(req)
+    """
+    Type 3 — Sự kiện được đề cập trong transcript.
+    Primary channel: text-text (query ↔ transcript segments).
+    Secondary: text-image để re-rank (optional).
+    """
+    # TODO:
+    # 1. encode req.query bằng Vietnamese text-embedding model
+    # 2. search transcript index (text-text channel)
+    # 3. (optional) re-rank top results bằng text-image score
+    # 4. paginate, trả về
+    raise NOT_IMPLEMENTED
 
 
-# --- Refine endpoints -------------------------------------------------------
+# ---------------------------------------------------------------------------
+# Refine routes
+# ---------------------------------------------------------------------------
 
 @app.post("/api/search/frame/refine")
 def refine_frame(req: SearchRequest):
-    """Refine Type 1 dựa trên feedback."""
-    pool = mock_search_results(req.k)
-    random.shuffle(pool)  # giả vờ kết quả thay đổi sau refine
-    paged = paginate(pool, req.page, req.imagesPerPage)
-    return {
-        "results": paged["items"],
-        "totalImages": paged["total"],
-        "page": paged["page"],
-        "totalPages": paged["totalPages"],
-    }
+    """Refine Type 1 dựa trên feedback (immediate + aggregated)."""
+    # TODO:
+    # 1. đọc feedback từ app.state.FEEDBACK_STORE[req.sessionId]
+    # 2. chạy immediate_refining hoặc aggregated_refining
+    # 3. paginate, trả về
+    raise NOT_IMPLEMENTED
 
 
 @app.post("/api/search/event-boundary/refine")
 def refine_event_boundary(req: SearchRequest):
-    return refine_frame(req)
+    raise NOT_IMPLEMENTED
 
 
 @app.post("/api/search/event-mention/refine")
 def refine_event_mention(req: SearchRequest):
-    return refine_frame(req)
+    raise NOT_IMPLEMENTED
 
 
-# --- Feedback ---------------------------------------------------------------
+# ---------------------------------------------------------------------------
+# Feedback
+# ---------------------------------------------------------------------------
 
 @app.post("/api/update_feedback")
 def update_feedback(req: FeedbackRequest):
-    """Lưu like/dislike vào in-memory store."""
-    session = FEEDBACK_STORE.setdefault(req.session_id, {})
+    """
+    Lưu like/dislike vào FEEDBACK_STORE.
+    Route này đơn giản — implement sớm nhất vì không cần model/DB.
+    """
+    # TODO (optional): persist sang DB thật thay vì in-memory
+    session = app.state.FEEDBACK_STORE.setdefault(req.session_id, {})
     session[req.db_idx] = req.action
     return {"feedbackStatus": req.action, "dbIdx": req.db_idx}
 
 
-# --- Keyword suggestions ----------------------------------------------------
+# ---------------------------------------------------------------------------
+# Keyword graph suggestions
+# ---------------------------------------------------------------------------
 
 @app.post("/api/process_query")
 def process_query(req: ProcessQueryRequest):
     """
-    Trả về danh sách keyword gợi ý từ query text.
-    Mock: tách từ và trả về tối đa 5 từ.
+    Trả keyword gợi ý từ keyword graph.
     """
-    words = req.query_text.lower().split()
-    # Loại stop-words đơn giản
-    stop = {"một", "và", "của", "ở", "tại", "trước", "sau", "đang", "được"}
-    keywords = [w for w in words if w not in stop][:5]
-    return {"keywords": keywords}
+    # TODO:
+    # 1. word-segment req.query_text bằng underthesea/pyvi
+    # 2. chuẩn hoá Unicode NFC
+    # 3. graph expansion → trả top keywords
+    raise NOT_IMPLEMENTED
 
 
-# --- Data page (browse keyframes by video_id / timestamp) ------------------
+# ---------------------------------------------------------------------------
+# Data browser
+# ---------------------------------------------------------------------------
 
 @app.get("/api/data")
 def get_data(
     page: int = 1,
-    video_ID: str = "",
-    timestamp: str = "",
     perPage: int = 50,
+    video_ID: str = "",
+    timestamp: str = "",        # start time
+    timestamp_end: str = "",    # end time (optional)
 ):
-    """Browse keyframes — hỗ trợ filter theo video_id và timestamp."""
-    # Tạo pool 200 frame mock
-    pool = [make_mock_result(db_idx=i + 1, video_id=None) for i in range(200)]
+    """Browse keyframes theo video_ID / khoảng timestamp."""
+    video_index = app.state.video_index
+    all_frames  = app.state.all_frames
 
+    # thumbnail đã được build sẵn lúc load — không cần transform lại
+
+    # Lấy pool theo video_ID (O(1) lookup) hoặc toàn bộ nếu không filter
     if video_ID:
-        # Lọc theo video_id (mock: gán cố định để filter cho ra kết quả)
-        vid_pool = [make_mock_result(db_idx=i + 1, video_id=video_ID) for i in range(30)]
-        pool = vid_pool
+        items = list(video_index.get(video_ID, []))
+    else:
+        items = all_frames  # 200k items, chỉ paginate, không sort thêm
 
+    # Filter / sort theo timestamp (chỉ apply khi có video_ID để tránh sort 200k)
     if timestamp and video_ID:
-        # Giả sử timestamp lọc frame gần với thời điểm đó
-        try:
-            parts = timestamp.split(":")
-            h, m, s = int(parts[0]), int(parts[1]), float(parts[2]) if len(parts) > 2 else 0
-            target_sec = h * 3600 + m * 60 + s
-            pool = sorted(pool, key=lambda r: abs(r["timestamp"] - target_sec))
-        except Exception:
-            pass  # timestamp parse lỗi → bỏ qua filter
+        start_sec = parse_timestamp(timestamp)
+        if timestamp_end:
+            end_sec = parse_timestamp(timestamp_end)
+            items = [
+                r for r in items
+                if start_sec <= parse_timestamp(r["timestamp"]) <= end_sec
+            ]
+            items = sorted(items, key=lambda r: parse_timestamp(r["timestamp"]))
+        else:
+            # Chỉ có start → sort theo frame gần nhất từ thời điểm đó
+            items = sorted(
+                items,
+                key=lambda r: abs(parse_timestamp(r["timestamp"]) - start_sec),
+            )
 
-    paged = paginate(pool, page, perPage)
+    paged = paginate(items, page, perPage)
     return {
         "keyframes": paged["items"],
         "total": paged["total"],
         "totalPages": paged["totalPages"],
     }
 
-from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
 
-app.mount("/assets", StaticFiles(directory="sceneseek-frontend/dist/assets"), name="assets")
+# ---------------------------------------------------------------------------
+# Serve React production build
+# (comment out khi đang dev với 2 server riêng — Vite + FastAPI)
+# Uncomment sau khi chạy `npm run build` và muốn deploy 1 server duy nhất.
+# ---------------------------------------------------------------------------
+
+dist_dir = os.path.join(os.path.dirname(__file__), "sceneseek-frontend", "dist")
+if os.path.isdir(dist_dir):
+    app.mount("/assets", StaticFiles(directory=os.path.join(dist_dir, "assets")), name="assets")
 
 @app.get("/{full_path:path}")
 def serve_frontend(full_path: str):
-    return FileResponse("sceneseek-frontend/dist/index.html")
+    return FileResponse(os.path.join(dist_dir, "index.html"))
+
 
 # ---------------------------------------------------------------------------
 # Run
 # ---------------------------------------------------------------------------
+
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000, reload=True)

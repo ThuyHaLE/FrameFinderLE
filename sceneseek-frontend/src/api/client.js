@@ -1,52 +1,23 @@
 /**
- * Centralized API client.
+ * api/client.js — SceneSeek API client
+ * =====================================
+ * Pattern: try real backend first, fallback to mock if it fails.
  *
- * This is the ONLY file that should know whether data is mocked or real.
- * Every component calls these functions, never `fetch` directly. When the
- * real retrieval backend is ready, flip USE_MOCK to false (or delete the
- * mock branch) — no component needs to change.
+ * - Backend route đã implement → trả HTTP 200 → dùng data thật.
+ * - Backend route chưa implement → trả 501 → catch → fallback mock.
+ * - Backend không chạy (network error) → catch → fallback mock.
+ *
+ * Để update từng route: implement route trong app.py, xoá `throw` / 501,
+ * trả data thật → client tự nhận ra và dừng dùng mock cho route đó.
+ * Không cần đổi flag hay build lại.
  */
 
 import { getQueryType } from "../config/queryTypes";
 
-const USE_MOCK = true;
-const API_BASE = ""; // e.g. "http://localhost:8000" when running frontend/backend separately
+const API_BASE = ""; // e.g. "http://localhost:8000" khi chạy 2 server riêng
 
 // ---------------------------------------------------------------------------
-// Mock data
-// ---------------------------------------------------------------------------
-
-function makeMockResult(i, videoId = `L01_V${String((i % 5) + 1).padStart(3, "0")}`) {
-  return {
-    db_idx: i,
-    video_id: videoId,
-    frame_id: `F${String(i).padStart(4, "0")}`,
-    timestamp: 12.5 * i,
-    thumbnail: `https://placehold.co/320x180?text=${videoId}`,
-    description: "Mô tả khung cảnh mẫu (mock) cho frame này.",
-    score: 1 - i * 0.03,
-    feedback: null, // 'like' | 'dislike' | null
-  };
-}
-
-const MOCK_POOL = Array.from({ length: 60 }, (_, i) => makeMockResult(i + 1));
-
-function paginate(items, page, perPage) {
-  const start = (page - 1) * perPage;
-  const pageItems = items.slice(start, start + perPage);
-  return {
-    items: pageItems,
-    total: items.length,
-    totalPages: Math.max(1, Math.ceil(items.length / perPage)),
-  };
-}
-
-async function mockDelay(ms = 300) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
-// ---------------------------------------------------------------------------
-// Real fetch helper (used once USE_MOCK is false)
+// Core fetch helper
 // ---------------------------------------------------------------------------
 
 async function request(path, options = {}) {
@@ -55,9 +26,66 @@ async function request(path, options = {}) {
     ...options,
   });
   if (!res.ok) {
-    throw new Error(`API error ${res.status}: ${await res.text()}`);
+    // 501 = chưa implement, 4xx/5xx khác = lỗi thật
+    throw new Error(`API ${res.status}: ${path}`);
   }
   return res.json();
+}
+
+/**
+ * Thử gọi real backend. Nếu thất bại vì bất kỳ lý do gì
+ * (network, 501, 4xx, 5xx) → trả null để caller fallback về mock.
+ */
+async function tryReal(fn) {
+  try {
+    const result = await fn();
+    return result ?? null;
+  } catch {
+    return null;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Mock helpers
+// ---------------------------------------------------------------------------
+
+function makeMockResult(i, videoId) {
+  const vid = videoId ?? `L01_V${String((i % 5) + 1).padStart(3, "0")}`;
+  return {
+    db_idx: i,
+    video_id: vid,
+    frame_id: `F${String(i).padStart(4, "0")}`,
+    timestamp: 12.5 * i,
+    thumbnail: `https://placehold.co/320x180/1a1a2e/ffffff?text=${vid}`,
+    description: `[Mock] Frame ${i} — ${vid}`,
+    score: Math.max(0, 1 - i * 0.015),
+    feedback: null,
+  };
+}
+
+const MOCK_POOL = Array.from({ length: 120 }, (_, i) => makeMockResult(i + 1));
+
+function paginate(items, page, perPage) {
+  const total = items.length;
+  const totalPages = Math.max(1, Math.ceil(total / perPage));
+  const safePage = Math.max(1, Math.min(page, totalPages));
+  const start = (safePage - 1) * perPage;
+  return {
+    items: items.slice(start, start + perPage),
+    total,
+    totalPages,
+    page: safePage,
+  };
+}
+
+async function mockDelay(ms = 280) {
+  return new Promise((r) => setTimeout(r, ms));
+}
+
+function mockSearchResponse(page, imagesPerPage, shuffle = false) {
+  const pool = shuffle ? [...MOCK_POOL].sort(() => Math.random() - 0.5) : MOCK_POOL;
+  const { items, total, totalPages } = paginate(pool, page, imagesPerPage);
+  return { results: items, totalImages: total, page, totalPages };
 }
 
 // ---------------------------------------------------------------------------
@@ -65,83 +93,124 @@ async function request(path, options = {}) {
 // ---------------------------------------------------------------------------
 
 /**
- * Run a search for the given query type.
- * @param {string} typeKey - one of the keys in config/queryTypes.js
- * @param {object} fieldValues - e.g. { query } or { start_query, end_query }
- * @param {object} opts - { keywords, k, displayOption, page, imagesPerPage, sessionId }
+ * Search by query type (Type 1 / 2 / 3).
+ * Tries the real endpoint for the active type; falls back to mock.
  */
 export async function searchByType(typeKey, fieldValues, opts) {
-  if (USE_MOCK) {
-    await mockDelay();
-    const { page = 1, imagesPerPage = 50 } = opts;
-    const { items, total, totalPages } = paginate(MOCK_POOL, page, imagesPerPage);
-    return { results: items, totalImages: total, page, totalPages };
-  }
+  const { page = 1, imagesPerPage = 50, keywords = [], k = 100,
+          displayOption = "sort_by_frame_index", sessionId } = opts;
 
   const type = getQueryType(typeKey);
-  return request(type.endpoint, {
-    method: "POST",
-    body: JSON.stringify({ ...fieldValues, ...opts }),
-  });
+
+  const real = await tryReal(() =>
+    request(type.endpoint, {
+      method: "POST",
+      body: JSON.stringify({
+        ...fieldValues,
+        keywords,
+        k,
+        displayOption,
+        page,
+        imagesPerPage,
+        sessionId,
+      }),
+    })
+  );
+  if (real) return real;
+
+  await mockDelay();
+  return mockSearchResponse(page, imagesPerPage);
 }
 
-/** Keyword graph suggestions for the free-text query (replaces old hashtag generation). */
-export async function getKeywordSuggestions(queryText) {
-  if (USE_MOCK) {
-    await mockDelay(150);
-    if (!queryText.trim()) return [];
-    return queryText
-      .split(/\s+/)
-      .filter(Boolean)
-      .slice(0, 4)
-      .map((w) => w.toLowerCase());
-  }
-
-  return request("/api/process_query", {
-    method: "POST",
-    body: JSON.stringify({ query_text: queryText }),
-  }).then((d) => d.keywords ?? []);
-}
-
-/** Record a like/dislike on a single result. */
-export async function sendFeedback(dbIdx, action, sessionId) {
-  if (USE_MOCK) {
-    await mockDelay(100);
-    return { feedbackStatus: action, dbIdx };
-  }
-  return request("/api/update_feedback", {
-    method: "POST",
-    body: JSON.stringify({ db_idx: dbIdx, action, session_id: sessionId }),
-  });
-}
-
-/** Trigger refinement using accumulated feedback for the session. */
+/**
+ * Refine results using accumulated feedback.
+ * Tries /api/search/{type}/refine; falls back to shuffled mock.
+ */
 export async function refineResults(typeKey, fieldValues, opts) {
-  if (USE_MOCK) {
-    await mockDelay();
-    const { page = 1, imagesPerPage = 50 } = opts;
-    const shuffled = [...MOCK_POOL].sort(() => Math.random() - 0.5);
-    const { items, total, totalPages } = paginate(shuffled, page, imagesPerPage);
-    return { results: items, totalImages: total, page, totalPages };
-  }
+  const { page = 1, imagesPerPage = 50, keywords = [], k = 100,
+          displayOption, sessionId } = opts;
 
   const type = getQueryType(typeKey);
-  return request(`${type.endpoint}/refine`, {
-    method: "POST",
-    body: JSON.stringify({ ...fieldValues, ...opts }),
-  });
+
+  const real = await tryReal(() =>
+    request(`${type.endpoint}/refine`, {
+      method: "POST",
+      body: JSON.stringify({
+        ...fieldValues,
+        keywords,
+        k,
+        displayOption,
+        page,
+        imagesPerPage,
+        sessionId,
+      }),
+    })
+  );
+  if (real) return real;
+
+  await mockDelay();
+  return mockSearchResponse(page, imagesPerPage, /* shuffle= */ true);
 }
 
-/** Browse keyframes by video_id / timestamp — backs the Data page. */
+/**
+ * Keyword graph suggestions.
+ * Tries /api/process_query; falls back to naive word-split mock.
+ */
+export async function getKeywordSuggestions(queryText) {
+  if (!queryText.trim()) return [];
+
+  const real = await tryReal(() =>
+    request("/api/process_query", {
+      method: "POST",
+      body: JSON.stringify({ query_text: queryText }),
+    })
+  );
+  if (real) return real.keywords ?? [];
+
+  await mockDelay(100);
+  const stop = new Set(["một", "và", "của", "ở", "tại", "trước", "sau", "đang", "được"]);
+  return queryText
+    .toLowerCase()
+    .split(/\s+/)
+    .filter((w) => w && !stop.has(w))
+    .slice(0, 5);
+}
+
+/**
+ * Send like/dislike feedback.
+ * Tries /api/update_feedback; silently ignores failure (best-effort).
+ */
+export async function sendFeedback(dbIdx, action, sessionId) {
+  const real = await tryReal(() =>
+    request("/api/update_feedback", {
+      method: "POST",
+      body: JSON.stringify({ db_idx: dbIdx, action, session_id: sessionId }),
+    })
+  );
+  // Feedback is always best-effort — no mock fallback needed,
+  // UI already reflects the click via local state in SearchContext.
+  return real ?? { feedbackStatus: action, dbIdx };
+}
+
+/**
+ * Browse keyframes by video_ID / timestamp (Data page).
+ * Tries /api/data; falls back to mock pool filtered by videoId.
+ */
 export async function fetchKeyframes({ page = 1, perPage = 50, videoId = "", timestamp = "" }) {
-  if (USE_MOCK) {
-    await mockDelay();
-    const filtered = videoId
-      ? MOCK_POOL.filter((r) => r.video_id === videoId)
-      : MOCK_POOL;
-    const { items, total, totalPages } = paginate(filtered, page, perPage);
-    return { keyframes: items, total, totalPages };
-  }
-  const params = new URLSearchParams({ page, video_ID: videoId, timestamp });
-  return request(`/api/data?${params.toString()}`);
+  const params = new URLSearchParams({
+    page,
+    perPage,
+    ...(videoId && { video_ID: videoId }),
+    ...(timestamp && { timestamp }),
+  });
+
+  const real = await tryReal(() => request(`/api/data?${params.toString()}`));
+  if (real) return real;
+
+  await mockDelay();
+  const pool = videoId
+    ? Array.from({ length: 30 }, (_, i) => makeMockResult(i + 1, videoId))
+    : MOCK_POOL;
+  const { items, total, totalPages } = paginate(pool, page, perPage);
+  return { keyframes: items, total, totalPages };
 }
