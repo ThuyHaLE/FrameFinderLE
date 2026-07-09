@@ -100,23 +100,28 @@ _ANNOTATION_PATH = os.path.join(
 with open(_ANNOTATION_PATH, encoding="utf-8") as _f:
     _raw = json.load(_f)
 
-# Flatten thành list với db_idx, build thumbnail URL ngay lúc load
-# để tránh transform 200k items mỗi request
+# Flatten thành list với db_idx, normalize field names về lowercase,
+# pre-compute timestamp_sec và build thumbnail URL ngay lúc load
+# → tránh string parsing + transform lặp lại mỗi request
 _ALL_FRAMES: List[dict] = []
 for _k, _v in _raw.items():
     _ALL_FRAMES.append({
-        "db_idx": int(_k),
-        **_v,
-        "thumbnail": build_thumbnail_url(_v["frame_path"]),
+        "db_idx":        int(_k),
+        "video_id":      _v["video_ID"],           # normalize: ID → id
+        "frame_id":      _v["frame_ID"],           # normalize: ID → id
+        "frame_path":    _v["frame_path"],
+        "timestamp":     _v["timestamp"],
+        "thumbnail":     build_thumbnail_url(_v["frame_path"]),
+        "timestamp_sec": parse_timestamp(_v["timestamp"]),  # pre-computed
     })
 
-# Index theo video_ID để filter O(1) thay vì O(n) linear scan
+# Index theo video_id (lowercase) để filter O(1)
 _VIDEO_INDEX: Dict[str, List[dict]] = {}
 for _item in _ALL_FRAMES:
-    _VIDEO_INDEX.setdefault(_item["video_ID"], []).append(_item)
+    _VIDEO_INDEX.setdefault(_item["video_id"], []).append(_item)
 
 app.state.all_frames   = _ALL_FRAMES    # toàn bộ 200k frames
-app.state.video_index  = _VIDEO_INDEX   # { video_ID: [frame, ...] }
+app.state.video_index  = _VIDEO_INDEX   # { video_id: [frame, ...] }
 
 app.state.FEEDBACK_STORE: Dict[str, Any] = {}
 
@@ -315,24 +320,25 @@ def get_data(
         for vid_key, frames in video_index.items():
             if vid_key.startswith(prefix):
                 items.extend(frames)
-        # Sort theo video_ID rồi timestamp để kết quả có thứ tự nhất quán
-        items.sort(key=lambda r: (r["video_ID"], r["timestamp"]))
+        # Sort theo video_id rồi timestamp_sec để kết quả có thứ tự nhất quán
+        items.sort(key=lambda r: (r["video_id"], r["timestamp_sec"]))
 
     # Filter / sort theo timestamp (chỉ apply khi có video_ID để tránh sort 200k)
+    # Dùng timestamp_sec (pre-computed float) thay vì parse string mỗi lần
     if timestamp and video_ID:
         start_sec = parse_timestamp(timestamp)
         if timestamp_end:
             end_sec = parse_timestamp(timestamp_end)
             items = [
                 r for r in items
-                if start_sec <= parse_timestamp(r["timestamp"]) <= end_sec
+                if start_sec <= r["timestamp_sec"] <= end_sec
             ]
-            items = sorted(items, key=lambda r: parse_timestamp(r["timestamp"]))
+            items = sorted(items, key=lambda r: r["timestamp_sec"])
         else:
             # Chỉ có start → sort theo frame gần nhất từ thời điểm đó
             items = sorted(
                 items,
-                key=lambda r: abs(parse_timestamp(r["timestamp"]) - start_sec),
+                key=lambda r: abs(r["timestamp_sec"] - start_sec),
             )
 
     paged = paginate(items, page, perPage)
@@ -352,10 +358,10 @@ def get_data(
 dist_dir = os.path.join(os.path.dirname(__file__), "sceneseek-frontend", "dist")
 if os.path.isdir(dist_dir):
     app.mount("/assets", StaticFiles(directory=os.path.join(dist_dir, "assets")), name="assets")
-    
-@app.get("/{full_path:path}")
-def serve_frontend(full_path: str):
-    return FileResponse(os.path.join(dist_dir, "index.html"))
+
+    @app.get("/{full_path:path}")
+    def serve_frontend(full_path: str):
+        return FileResponse(os.path.join(dist_dir, "index.html"))
 
 # ---------------------------------------------------------------------------
 # Run

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { fetchKeyframes } from "../api/client";
 import GalleryItem from "../components/results/GalleryItem";
 import Pagination from "../components/results/Pagination";
@@ -38,10 +38,14 @@ function validateTimestamp(ts) {
 // TimestampInput
 // ---------------------------------------------------------------------------
 
-function TimestampInput({ id, label, value, onChange, placeholder = "hh:mm:ss" }) {
+function TimestampInput({ id, label, value, onChange, placeholder = "hh:mm:ss", fallback = "00:00:00" }) {
   function shift(delta) {
     const base = parseTimestamp(value);
-    const next = Math.max(0, (base ?? 0) + delta);
+    // Nếu NaN (rỗng hoặc sai format) → dùng fallback thay vì tính từ NaN
+    const startFrom = (base === null || isNaN(base))
+      ? (parseTimestamp(fallback) ?? 0)
+      : base;
+    const next = Math.max(0, startFrom + delta);
     const h = Math.floor(next / 3600);
     const m = Math.floor((next % 3600) / 60);
     const s = Math.floor(next % 60);
@@ -176,6 +180,15 @@ export default function DataPage() {
   const [keyframes,  setKeyframes]  = useState([]);
   const [loading,    setLoading]    = useState(false);
 
+  // Duration fallback cho end timestamp: lấy timestamp của frame cuối trong video hiện tại
+  const endFallback = useMemo(() => {
+    if (keyframes.length === 0) return "00:00:00";
+    const last = keyframes.reduce((max, r) =>
+      (r.timestamp_sec ?? 0) > (max.timestamp_sec ?? 0) ? r : max
+    );
+    return last.timestamp ?? "00:00:00";
+  }, [keyframes]);
+
   // -------------------------------------------------------------------------
   // Validation
   // -------------------------------------------------------------------------
@@ -258,6 +271,7 @@ export default function DataPage() {
             value={tsStart}
             onChange={setTsStart}
             placeholder="hh:mm:ss[.SSS]"
+            fallback="00:00:00"
           />
           <TimestampInput
             id="ts_end"
@@ -265,6 +279,7 @@ export default function DataPage() {
             value={tsEnd}
             onChange={setTsEnd}
             placeholder="hh:mm:ss[.SSS]"
+            fallback={endFallback}
           />
         </div>
 
