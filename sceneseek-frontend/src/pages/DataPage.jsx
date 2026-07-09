@@ -4,10 +4,17 @@ import GalleryItem from "../components/results/GalleryItem";
 import Pagination from "../components/results/Pagination";
 
 // ---------------------------------------------------------------------------
+// Constants
+// ---------------------------------------------------------------------------
+
+const L_OPTIONS = Array.from({ length: 24 }, (_, i) =>
+  String(i + 1).padStart(2, "0")
+); // ["01", "02", ..., "24"]
+
+// ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
-/** Parse 'hh:mm:ss[.SSS]' hoặc 'h:mm:ss.ffffff' → giây (float) */
 function parseTimestamp(ts) {
   try {
     const parts = ts.trim().split(":");
@@ -20,19 +27,15 @@ function parseTimestamp(ts) {
   }
 }
 
-/**
- * Validate timestamp string.
- * Accept: hh:mm  |  hh:mm:ss  |  hh:mm:ss.SSS  |  h:mm:ss.ffffff
- */
 const TIMESTAMP_RE = /^\d+:[0-5]\d(:[0-5]\d(\.\d+)?)?$/;
 
 function validateTimestamp(ts) {
-  if (!ts || !ts.trim()) return true; // empty = ok (optional field)
+  if (!ts || !ts.trim()) return true;
   return TIMESTAMP_RE.test(ts.trim());
 }
 
 // ---------------------------------------------------------------------------
-// TimestampInput — input + ▲▼ buttons + paste-friendly
+// TimestampInput
 // ---------------------------------------------------------------------------
 
 function TimestampInput({ id, label, value, onChange, placeholder = "hh:mm:ss" }) {
@@ -45,16 +48,9 @@ function TimestampInput({ id, label, value, onChange, placeholder = "hh:mm:ss" }
     onChange([h, m, s].map((n) => String(n).padStart(2, "0")).join(":"));
   }
 
-  function handleChange(e) {
-    // strip leading/trailing whitespace that some video players add on copy
-    onChange(e.target.value.trimStart());
-  }
-
   function handlePaste(e) {
-    // normalise pasted text immediately
     e.preventDefault();
-    const pasted = (e.clipboardData.getData("text") || "").trim();
-    onChange(pasted);
+    onChange((e.clipboardData.getData("text") || "").trim());
   }
 
   return (
@@ -66,7 +62,7 @@ function TimestampInput({ id, label, value, onChange, placeholder = "hh:mm:ss" }
           type="text"
           value={value}
           placeholder={placeholder}
-          onChange={handleChange}
+          onChange={(e) => onChange(e.target.value.trimStart())}
           onPaste={handlePaste}
           autoComplete="off"
           spellCheck={false}
@@ -79,14 +75,101 @@ function TimestampInput({ id, label, value, onChange, placeholder = "hh:mm:ss" }
 }
 
 // ---------------------------------------------------------------------------
+// VideoIDSelector — L select + V text input → "L13_V001"
+// ---------------------------------------------------------------------------
+
+function VideoIDSelector({ videoId, onChange }) {
+  // Parse existing videoId back into L / V parts (e.g. "L13_V001" → "13", "001")
+  const match = videoId.match(/^L(\d{2})_V(\d+)$/);
+  const [lPart, setLPart] = useState(match ? match[1] : "");
+  const [vPart, setVPart] = useState(match ? match[2] : "");
+
+  // Sync up to parent whenever either part changes
+  useEffect(() => {
+    if (lPart && vPart) {
+      onChange(`L${lPart}_V${vPart.padStart(3, "0")}`); // exact: "L13_V001"
+    } else if (lPart) {
+      onChange(`L${lPart}`); // prefix: "L13" → backend lấy hết V cho L này
+    } else {
+      onChange(""); // no filter
+    }
+  }, [lPart, vPart]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  function handleVChange(e) {
+    const val = e.target.value.replace(/\D/g, "").slice(0, 3);
+    setVPart(val);
+  }
+
+  // Preview label
+  const previewLabel = lPart && vPart
+    ? `→ L${lPart}_V${vPart.padStart(3, "0")}`
+    : lPart
+    ? `→ L${lPart}_V* (tất cả)`
+    : null;
+
+  return (
+    <div className="ss-form-group">
+      <label>Video ID</label>
+      <div className="ss-videoid-row">
+        {/* L part */}
+        <select
+          value={lPart}
+          onChange={(e) => setLPart(e.target.value)}
+          className="ss-videoid-select"
+          aria-label="Chọn L"
+        >
+          <option value="">-- L --</option>
+          {L_OPTIONS.map((l) => (
+            <option key={l} value={l}>L{l}</option>
+          ))}
+        </select>
+
+        <span className="ss-videoid-sep">_</span>
+
+        {/* V part — để trống = lấy tất cả V của L đã chọn */}
+        <div className="ss-videoid-v-wrap">
+          <span className="ss-videoid-v-prefix">V</span>
+          <input
+            type="text"
+            inputMode="numeric"
+            value={vPart}
+            onChange={handleVChange}
+            placeholder="* (tất cả)"
+            className="ss-videoid-v-input ss-videoid-v-input--wide"
+            aria-label="Nhập số V (để trống = lấy tất cả V)"
+            maxLength={3}
+          />
+        </div>
+
+        {/* Preview */}
+        {previewLabel && (
+          <span className="ss-videoid-preview">{previewLabel}</span>
+        )}
+
+        {/* Clear */}
+        {(lPart || vPart) && (
+          <button
+            type="button"
+            className="ss-btn ss-btn--ghost"
+            onClick={() => { setLPart(""); setVPart(""); }}
+          >
+            ×
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // DataPage
 // ---------------------------------------------------------------------------
 
 export default function DataPage() {
-  const [videoId,      setVideoId]      = useState("");
-  const [tsStart,      setTsStart]      = useState("");
-  const [tsEnd,        setTsEnd]        = useState("");
-  const [filterError,  setFilterError]  = useState(null);
+  const [videoId,     setVideoId]     = useState("");
+  const [tsStart,     setTsStart]     = useState("");
+  const [tsEnd,       setTsEnd]       = useState("");
+  const [filterError, setFilterError] = useState(null);
 
   const [page,       setPage]       = useState(1);
   const [totalPages, setTotalPages] = useState(1);
@@ -98,22 +181,18 @@ export default function DataPage() {
   // -------------------------------------------------------------------------
 
   function validate() {
-    if (tsStart && !validateTimestamp(tsStart)) {
+    if (tsStart && !validateTimestamp(tsStart))
       return "Định dạng thời điểm bắt đầu không hợp lệ (hh:mm:ss[.SSS]).";
-    }
-    if (tsEnd && !validateTimestamp(tsEnd)) {
+    if (tsEnd && !validateTimestamp(tsEnd))
       return "Định dạng thời điểm kết thúc không hợp lệ (hh:mm:ss[.SSS]).";
-    }
     if (tsStart && tsEnd) {
       const s = parseTimestamp(tsStart);
       const e = parseTimestamp(tsEnd);
-      if (s !== null && e !== null && e <= s) {
+      if (s !== null && e !== null && e <= s)
         return "Thời điểm kết thúc phải sau thời điểm bắt đầu.";
-      }
     }
-    if ((tsStart || tsEnd) && !videoId.trim()) {
-      return "Vui lòng nhập Video ID khi lọc theo timestamp.";
-    }
+    if ((tsStart || tsEnd) && !videoId.trim())
+      return "Vui lòng chọn Video ID khi lọc theo timestamp.";
     return null;
   }
 
@@ -139,7 +218,6 @@ export default function DataPage() {
     }
   }, [videoId, tsStart, tsEnd]);
 
-  // Load on mount (shows first 50 frames from mock/real)
   useEffect(() => { load(1); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // -------------------------------------------------------------------------
@@ -171,19 +249,8 @@ export default function DataPage() {
 
       <form className="ss-search-form" onSubmit={handleSubmit}>
 
-        {/* Video ID */}
-        <div className="ss-form-group">
-          <label htmlFor="video_ID">Video ID</label>
-          <input
-            id="video_ID"
-            type="text"
-            value={videoId}
-            placeholder="VD: L13_V001"
-            onChange={(e) => setVideoId(e.target.value)}
-          />
-        </div>
+        <VideoIDSelector videoId={videoId} onChange={setVideoId} />
 
-        {/* Timestamp range */}
         <div className="ss-form-row">
           <TimestampInput
             id="ts_start"
@@ -202,9 +269,9 @@ export default function DataPage() {
         </div>
 
         <p className="ss-form-hint">
-          Paste trực tiếp timestamp từ video player. Chỉ lọc theo timestamp khi đã nhập Video ID.
-          {tsStart && !tsEnd && " Nếu chỉ nhập Bắt đầu, kết quả được sắp xếp từ frame gần nhất."}
-          {tsStart &&  tsEnd && " Hiển thị các frame nằm trong khoảng đã chọn."}
+          Paste trực tiếp timestamp từ video player.
+          {tsStart && !tsEnd && " Chỉ nhập Bắt đầu → frame gần nhất từ thời điểm đó."}
+          {tsStart &&  tsEnd && " Hiển thị frame trong khoảng đã chọn."}
         </p>
 
         {filterError && <p className="ss-form-error">{filterError}</p>}

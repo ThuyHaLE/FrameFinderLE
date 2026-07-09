@@ -299,11 +299,24 @@ def get_data(
 
     # thumbnail đã được build sẵn lúc load — không cần transform lại
 
-    # Lấy pool theo video_ID (O(1) lookup) hoặc toàn bộ nếu không filter
-    if video_ID:
+    # Lấy pool theo video_ID
+    # - Không filter         → toàn bộ 200k frames
+    # - Exact "L13_V001"     → O(1) lookup từ video_index
+    # - Prefix "L13"         → gộp tất cả V của L đó (O(số video trong L))
+    if not video_ID:
+        items = all_frames
+    elif "_V" in video_ID:
+        # Exact match: "L13_V001"
         items = list(video_index.get(video_ID, []))
     else:
-        items = all_frames  # 200k items, chỉ paginate, không sort thêm
+        # Prefix match: "L13" → lấy tất cả key bắt đầu bằng "L13_"
+        prefix = f"{video_ID}_"
+        items = []
+        for vid_key, frames in video_index.items():
+            if vid_key.startswith(prefix):
+                items.extend(frames)
+        # Sort theo video_ID rồi timestamp để kết quả có thứ tự nhất quán
+        items.sort(key=lambda r: (r["video_ID"], r["timestamp"]))
 
     # Filter / sort theo timestamp (chỉ apply khi có video_ID để tránh sort 200k)
     if timestamp and video_ID:
@@ -339,11 +352,10 @@ def get_data(
 dist_dir = os.path.join(os.path.dirname(__file__), "sceneseek-frontend", "dist")
 if os.path.isdir(dist_dir):
     app.mount("/assets", StaticFiles(directory=os.path.join(dist_dir, "assets")), name="assets")
-
+    
 @app.get("/{full_path:path}")
 def serve_frontend(full_path: str):
     return FileResponse(os.path.join(dist_dir, "index.html"))
-
 
 # ---------------------------------------------------------------------------
 # Run
