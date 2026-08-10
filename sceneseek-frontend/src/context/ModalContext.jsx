@@ -16,11 +16,11 @@ export function ModalProvider({ children }) {
   const closeModal = useCallback(() => setOpen(false), []);
 
   const next = useCallback(() => {
-    setIndex((i) => (i + 1) % images.length);
+    setIndex((i) => (images.length === 0 ? 0 : (i + 1) % images.length));
   }, [images.length]);
 
   const prev = useCallback(() => {
-    setIndex((i) => (i - 1 + images.length) % images.length);
+    setIndex((i) => (images.length === 0 ? 0 : (i - 1 + images.length) % images.length));
   }, [images.length]);
 
   const value = { images, index, open, openModal, closeModal, next, prev };

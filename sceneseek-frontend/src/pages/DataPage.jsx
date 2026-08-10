@@ -7,7 +7,8 @@ import Pagination from "../components/results/Pagination";
 // Constants
 // ---------------------------------------------------------------------------
 
-const L_OPTIONS = Array.from({ length: 24 }, (_, i) =>
+// Fallback khi chưa fetch được /api/videos/l-options (hoặc lỗi mạng).
+const FALLBACK_L_OPTIONS = Array.from({ length: 24 }, (_, i) =>
   String(i + 1).padStart(2, "0")
 ); // ["01", "02", ..., "24"]
 
@@ -82,9 +83,9 @@ function TimestampInput({ id, label, value, onChange, placeholder = "hh:mm:ss", 
 // VideoIDSelector — L select + V text input → "L13_V001"
 // ---------------------------------------------------------------------------
 
-function VideoIDSelector({ videoId, onChange }) {
+function VideoIDSelector({ videoId, onChange, lOptions }) {
   // Parse existing videoId back into L / V parts (e.g. "L13_V001" → "13", "001")
-  const match = videoId.match(/^L(\d{2})_V(\d+)$/);
+  const match = videoId.match(/^L(\d+)_V(\d+)$/);
   const [lPart, setLPart] = useState(match ? match[1] : "");
   const [vPart, setVPart] = useState(match ? match[2] : "");
 
@@ -123,7 +124,7 @@ function VideoIDSelector({ videoId, onChange }) {
           aria-label="Chọn L"
         >
           <option value="">-- L --</option>
-          {L_OPTIONS.map((l) => (
+          {lOptions.map((l) => (
             <option key={l} value={l}>L{l}</option>
           ))}
         </select>
@@ -180,6 +181,25 @@ export default function DataPage() {
   const [keyframes,  setKeyframes]  = useState([]);
   const [loading,    setLoading]    = useState(false);
 
+  // Danh sách "L" cho dropdown — lấy động từ backend (dựa trên video_ID thật
+  // có trong JSON), fallback về FALLBACK_L_OPTIONS nếu fetch lỗi.
+  const [lOptions, setLOptions] = useState(FALLBACK_L_OPTIONS);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/videos/l-options")
+      .then((res) => (res.ok ? res.json() : Promise.reject(res.status)))
+      .then((data) => {
+        if (!cancelled && Array.isArray(data?.lOptions) && data.lOptions.length > 0) {
+          setLOptions(data.lOptions);
+        }
+      })
+      .catch(() => {
+        // giữ nguyên FALLBACK_L_OPTIONS nếu lỗi
+      });
+    return () => { cancelled = true; };
+  }, []);
+
   // Duration fallback cho end timestamp: lấy timestamp của frame cuối trong video hiện tại
   const endFallback = useMemo(() => {
     if (keyframes.length === 0) return "00:00:00";
@@ -225,7 +245,10 @@ export default function DataPage() {
       });
       setKeyframes(res.keyframes);
       setTotalPages(res.totalPages);
-      setPage(targetPage);
+      // Dùng page đã được backend clamp (res.page) thay vì tin theo targetPage gốc,
+      // tránh trường hợp targetPage vượt quá totalPages thật (VD: đổi filter làm
+      // totalPages co lại) khiến UI hiển thị page > totalPages như "100 / 50".
+      setPage(res.page ?? targetPage);
     } finally {
       setLoading(false);
     }
@@ -262,7 +285,7 @@ export default function DataPage() {
 
       <form className="ss-search-form" onSubmit={handleSubmit}>
 
-        <VideoIDSelector videoId={videoId} onChange={setVideoId} />
+        <VideoIDSelector videoId={videoId} onChange={setVideoId} lOptions={lOptions} />
 
         <div className="ss-form-row">
           <TimestampInput

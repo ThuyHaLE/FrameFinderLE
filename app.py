@@ -16,6 +16,7 @@ Chạy:
 
 import math
 import os
+import re
 from typing import Any, Dict, List, Optional
 
 import uvicorn
@@ -103,16 +104,22 @@ with open(_ANNOTATION_PATH, encoding="utf-8") as _f:
 # Flatten thành list với db_idx, normalize field names về lowercase,
 # pre-compute timestamp_sec và build thumbnail URL ngay lúc load
 # → tránh string parsing + transform lặp lại mỗi request
+#
+# Format JSON mới (đã cập nhật):
+#   { "frame_ID": int, "frame_idx": int, "frame_path": str,
+#     "video_ID": str, "timestamp": str, "time_in_seconds": float }
 _ALL_FRAMES: List[dict] = []
 for _k, _v in _raw.items():
     _ALL_FRAMES.append({
         "db_idx":        int(_k),
-        "video_id":      _v["video_ID"],           # normalize: ID → id
-        "frame_id":      _v["frame_ID"],           # normalize: ID → id
+        "video_id":      _v["video_ID"],             # normalize: ID → id
+        "frame_id":      _v["frame_ID"],              # normalize: ID → id
+        "frame_idx":     _v["frame_idx"],              # mới: index của frame trong video
         "frame_path":    _v["frame_path"],
         "timestamp":     _v["timestamp"],
         "thumbnail":     build_thumbnail_url(_v["frame_path"]),
-        "timestamp_sec": parse_timestamp(_v["timestamp"]),  # pre-computed
+        # dùng time_in_seconds có sẵn trong JSON thay vì tự parse timestamp string
+        "timestamp_sec": _v.get("time_in_seconds", parse_timestamp(_v["timestamp"])),
     })
 
 # Index theo video_id (lowercase) để filter O(1)
@@ -120,8 +127,19 @@ _VIDEO_INDEX: Dict[str, List[dict]] = {}
 for _item in _ALL_FRAMES:
     _VIDEO_INDEX.setdefault(_item["video_id"], []).append(_item)
 
+# Danh sách "L" (VD: "01", "21"...) lấy trực tiếp từ video_ID có trong data
+# thay vì cố định 1→24 → tự động phản ánh khi JSON có thêm L mới.
+_L_PREFIX_RE = re.compile(r"^L(\d+)_V")
+_l_set = set()
+for _vid in _VIDEO_INDEX.keys():
+    _m = _L_PREFIX_RE.match(_vid)
+    if _m:
+        _l_set.add(_m.group(1).zfill(2))
+_L_OPTIONS: List[str] = sorted(_l_set, key=lambda s: int(s))
+
 app.state.all_frames   = _ALL_FRAMES    # toàn bộ 200k frames
 app.state.video_index  = _VIDEO_INDEX   # { video_id: [frame, ...] }
+app.state.l_options    = _L_OPTIONS     # ["01", "02", ..., ] — lấy từ data thật
 
 app.state.FEEDBACK_STORE: Dict[str, Any] = {}
 
@@ -287,6 +305,16 @@ def process_query(req: ProcessQueryRequest):
 
 
 # ---------------------------------------------------------------------------
+# Video ID options (cho dropdown "L" ở Data browser)
+# ---------------------------------------------------------------------------
+
+@app.get("/api/videos/l-options")
+def get_l_options():
+    """Trả danh sách giá trị L (VD: ["01","02",...]) có thật trong dataset hiện tại."""
+    return {"lOptions": app.state.l_options}
+
+
+# ---------------------------------------------------------------------------
 # Data browser
 # ---------------------------------------------------------------------------
 
@@ -346,6 +374,7 @@ def get_data(
         "keyframes": paged["items"],
         "total": paged["total"],
         "totalPages": paged["totalPages"],
+        "page": paged["page"],
     }
 
 

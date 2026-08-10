@@ -33,18 +33,19 @@ export default function ImageModal() {
         <button className="ss-modal-nav ss-modal-nav--prev" onClick={prev} aria-label="Ảnh trước">‹</button>
         <button className="ss-modal-nav ss-modal-nav--next" onClick={next} aria-label="Ảnh sau">›</button>
 
-        <img src={current.src} alt={current.frame_id} className="ss-modal-image" />
+        <img src={current.src} alt={current.frame_idx} className="ss-modal-image" />
 
-        {/* Primary: videoID | timestamp */}
+        {/* Primary: videoID | frame_idx | timestamp */}
         <div className="ss-modal-primary-meta">
           <span className="ss-modal-video-id">{current.video_id}</span>
+          <span className="ss-modal-sep">|</span>
+          <span className="ss-modal-frame-idx">{current.frame_idx}</span>
           <span className="ss-modal-sep">|</span>
           <span className="ss-modal-timestamp">{formatTimestamp(current.timestamp)}</span>
         </div>
 
-        {/* Secondary: frame_id + position counter */}
+        {/* Secondary: vị trí trong danh sách */}
         <div className="ss-modal-secondary-meta">
-          <span>{current.frame_id}</span>
           <span>{index + 1} / {images.length}</span>
         </div>
 
