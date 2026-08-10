@@ -181,6 +181,10 @@ export default function DataPage() {
   const [keyframes,  setKeyframes]  = useState([]);
   const [loading,    setLoading]    = useState(false);
 
+  // Bump để ép VideoIDSelector remount (reset lPart/vPart nội bộ) khi Xoá filter —
+  // vì component đó chỉ đọc videoId prop lúc mount, không tự đồng bộ khi prop đổi.
+  const [selectorResetKey, setSelectorResetKey] = useState(0);
+
   // Danh sách "L" cho dropdown — lấy động từ backend (dựa trên video_ID thật
   // có trong JSON), fallback về FALLBACK_L_OPTIONS nếu fetch lỗi.
   const [lOptions, setLOptions] = useState(FALLBACK_L_OPTIONS);
@@ -233,15 +237,21 @@ export default function DataPage() {
   // Data loading
   // -------------------------------------------------------------------------
 
-  const load = useCallback(async (targetPage = 1) => {
+  const load = useCallback(async (targetPage = 1, overrides = {}) => {
+    const filters = {
+      videoId: videoId,
+      tsStart: tsStart,
+      tsEnd: tsEnd,
+      ...overrides, // cho phép gọi với giá trị mới ngay lập tức, tránh closure cũ từ state chưa kịp update
+    };
     setLoading(true);
     try {
       const res = await fetchKeyframes({
         page: targetPage,
         perPage: 50,
-        videoId: videoId.trim(),
-        timestamp: tsStart.trim(),
-        timestamp_end: tsEnd.trim(),
+        videoId: filters.videoId.trim(),
+        timestamp: filters.tsStart.trim(),
+        timestamp_end: filters.tsEnd.trim(),
       });
       setKeyframes(res.keyframes);
       setTotalPages(res.totalPages);
@@ -273,6 +283,8 @@ export default function DataPage() {
     setTsStart("");
     setTsEnd("");
     setFilterError(null);
+    setSelectorResetKey((k) => k + 1); // ép VideoIDSelector remount → xoá luôn lPart/vPart đang chọn
+    load(1, { videoId: "", tsStart: "", tsEnd: "" }); // reload không filter ngay lập tức
   }
 
   // -------------------------------------------------------------------------
@@ -285,7 +297,7 @@ export default function DataPage() {
 
       <form className="ss-search-form" onSubmit={handleSubmit}>
 
-        <VideoIDSelector videoId={videoId} onChange={setVideoId} lOptions={lOptions} />
+        <VideoIDSelector key={selectorResetKey} videoId={videoId} onChange={setVideoId} lOptions={lOptions} />
 
         <div className="ss-form-row">
           <TimestampInput
