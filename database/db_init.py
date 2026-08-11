@@ -3,7 +3,6 @@ import torch
 
 import faiss
 import multiprocessing
-import pickle
 
 # Configure logging to output to the notebook
 import logging
@@ -17,8 +16,8 @@ def faiss_database_processing(database_name='CLIP_v0'):
 
     # Load the FAISS index and image info dictionary based on the database name
     if database_name == 'CLIP_v0':
-        database_path = 'databases/faiss-index-hnsw-jinaclipv2-v0/merged_index_hnsw_jinaclipv2_v0.bin'
-        image_info_dict_path = 'databases/faiss-index-hnsw-jinaclipv2-v0/image_info_dict.json'
+        database_path = 'static/databases/faiss-index-hnsw-jinaclipv2-v0/merged_index_hnsw_jinaclipv2_v0.bin'
+        image_info_dict_path = 'static/databases/faiss-index-hnsw-jinaclipv2-v0/image_info_dict.json'
     else:
         raise ValueError("Unsupported database name. Choose 'CLIP_v0'.")
     logger.info(f"Load database {database_name}: DONE!")
@@ -58,7 +57,7 @@ def load_annotation(image_info_dict_path):
         logger.error(f"Error loading annotation from {image_info_dict_path}: {e}")
         return None
     
-def load_encoded_frames(device, encoded_frames_path = 'databases/encoded_frames/encoded_frames.pt'):
+def load_encoded_frames(device, encoded_frames_path = 'static/databases/encoded_frames/encoded_frames.pt'):
     # Load the encoded frames from a PyTorch file
     encoded_frames = torch.load(encoded_frames_path, 
                                 map_location=device, 

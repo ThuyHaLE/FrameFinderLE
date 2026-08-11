@@ -1,7 +1,11 @@
+// components/search/SearchOptions.jsx
+
+import { useEffect } from "react";
 import { useSearchContext } from "../../context/SearchContext";
 
 export default function SearchOptions() {
   const {
+    activeTypeKey,
     k,
     setK,
     displayOption,
@@ -14,6 +18,13 @@ export default function SearchOptions() {
   } = useSearchContext();
 
   const hasFeedback = Object.keys(feedbackMap).length > 0;
+  const isBoundaryType = activeTypeKey === "event_boundary";
+
+  useEffect(() => {
+    if (isBoundaryType && displayOption !== "sort_by_frame_index") {
+      setDisplayOption("sort_by_frame_index");
+    }
+  }, [isBoundaryType, displayOption, setDisplayOption]);
 
   return (
     <div className="ss-search-options">
@@ -34,6 +45,8 @@ export default function SearchOptions() {
           id="display_option"
           value={displayOption}
           onChange={(e) => setDisplayOption(e.target.value)}
+          disabled={isBoundaryType}
+          title={isBoundaryType ? "Cụm cảnh luôn hiển thị theo thứ tự frame" : undefined}
         >
           <option value="sort_by_frame_index">Thứ tự frame</option>
           <option value="group_by_videoid">Nhóm theo Video ID</option>
