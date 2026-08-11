@@ -11,3 +11,8 @@ multiprocess
 git+https://github.com/openai/CLIP.git
 jinja2
 pydantic
+
+transformers==4.44.2
+einops 
+timm 
+pillow
