@@ -3,16 +3,19 @@ torch
 numpy
 spacy
 nltk
+
 fastapi
 uvicorn
+pyngrok
+
+transformers==4.44.2
 python-multipart
 faiss-cpu
 multiprocess
-git+https://github.com/openai/CLIP.git
+
 jinja2
 pydantic
 
-transformers==4.44.2
 einops 
 timm 
 pillow
