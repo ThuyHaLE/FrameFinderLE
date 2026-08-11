@@ -1,5 +1,4 @@
 import torch
-import clip
 from transformers import AutoModel
 
 # Configure logging to output to the notebook
