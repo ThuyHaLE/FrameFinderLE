@@ -4,35 +4,43 @@
 
 # tools/query_encoding.py
 import torch
-import clip
-import nltk
-nltk.download('punkt')
 
-def encode_description(model, device, description):
+def _chunks(lst, chunk_size):
+    """Chia lst thanh cac list con, moi list toi da chunk_size phan tu."""
+    for i in range(0, len(lst), chunk_size):
+        yield lst[i:i + chunk_size]
+
+def encode_texts(
+        model,
+        texts, 
+        batch_size=32, 
+        truncate_dim=None, 
+        chunk_size=500, 
+        sort_by_length=True, 
+        show_progress=False):
     """
-    Encodes a description into text features using the CLIP model.
-    The description is split into sentences, each sentence is tokenized
-    and encoded separately. The resulting features are averaged and normalized.
-
-    Args:
-        model (CLIP model): The CLIP model used for encoding.
-        device (torch.device): The device (CPU or CUDA) to run the model on.
-        description (str): The text description to encode.
-        
-    Returns:
-        torch.Tensor: Normalized text features of the description.
+    Encode danh sach text (query ngan, mo ta nhieu cau...) bang jina-clip-v2.
+    :param truncate_dim: PHAI KHOP voi truncate_dim da dung khi encode anh!
+    :return: torch.Tensor (N, dim) da normalize, dung thu tu voi `texts` dau vao
     """
+    n = len(texts)
+    if sort_by_length:
+        order = sorted(range(n), key=lambda i: len(texts[i]))
+    else:
+        order = list(range(n))
+    sorted_texts = [texts[i] for i in order]
 
-    sent_text = nltk.sent_tokenize(description)  # Split the description into sentences
-
-    text_features = torch.zeros((1, 512), dtype=torch.float32).to(device)  # Initialize feature tensor
-
-    for sent in sent_text:
-        text_input = clip.tokenize([sent], truncate=True).to(device)  # Tokenize and encode the sentence
+    all_features = []
+    for chunk in _chunks(sorted_texts, chunk_size):
         with torch.no_grad():
-            text_feature = model.encode_text(text_input)
-            text_features += text_feature.sum(dim=0, keepdim=True)  # Sum up features for each sentence
+            embeddings = model.encode_text(chunk, 
+                                           batch_size=batch_size, 
+                                           truncate_dim=truncate_dim)
+        feats = torch.tensor(embeddings, dtype=torch.float32)
+        feats = feats / feats.norm(dim=-1, keepdim=True)
+        all_features.append(feats.cpu())
 
-    text_features /= text_features.norm(dim=-1, keepdim=True)  # Normalize the features
-
-    return text_features
+    all_features = torch.cat(all_features, dim=0)
+    inverse_order = torch.argsort(torch.tensor(order))
+    all_features = all_features[inverse_order]
+    return all_features

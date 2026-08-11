@@ -58,7 +58,7 @@ def load_annotation(image_info_dict_path):
         logger.error(f"Error loading annotation from {image_info_dict_path}: {e}")
         return None
     
-def load_encoded_frames(device, encoded_frames_path = 'database/encoded_frames.pt'):
+def load_encoded_frames(device, encoded_frames_path = 'database/encoded_frames/encoded_frames.pt'):
     # Load the encoded frames from a PyTorch file
     encoded_frames = torch.load(encoded_frames_path, 
                                 map_location=device, 
