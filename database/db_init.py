@@ -11,54 +11,57 @@ logging.basicConfig()
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
-def load_grafa_database(grafa_path = 'database/graph_data_full.pkl'):
-    with open(grafa_path, 'rb') as f:
-        data = pickle.load(f)
-        G = data['G']
-        sparse_matrix = data['sparse_matrix']
-        node_mapping = data['node_mapping']
-        reverse_node_mapping = data['reverse_node_mapping']
-        logger.info(f"Load GRAFA database {grafa_path}: DONE!")
-    return G, sparse_matrix, node_mapping, reverse_node_mapping
-
-def load_hashtag_embeddings(hashtag_embeddings_path = 'database/hashtag_embeddings.pkl'):
-    with open(hashtag_embeddings_path, 'rb') as f:
-        hashtag_embeddings = pickle.load(f)
-    logger.info(f"Load hashtag embeddings {hashtag_embeddings_path}: DONE!")
-    return hashtag_embeddings
-
-def load_hashtag_embedding_bin(hashtag_embedding_bin_path = 'database/hashtag_embeddings.bin'):
+def faiss_database_processing(database_name='CLIP_v0'):
     num_threads = multiprocessing.cpu_count()
     logger.info(f"Number of threads: {num_threads}")
-    faiss.omp_set_num_threads(num_threads)
-    hashtag_embedding_index = faiss.read_index(hashtag_embedding_bin_path, faiss.IO_FLAG_MMAP)
-    logger.info(f"The IndexFlatL2 index {hashtag_embedding_bin_path} is ready!!!")
-    return hashtag_embedding_index
 
-def load_annotation(image_info_dict_path = 'database/index_caption_hashtag_dict_v2.json'):
-    with open(image_info_dict_path, 'r') as openfile:
-        image_info_dict = json.load(openfile)
+    # Load the FAISS index and image info dictionary based on the database name
+    if database_name == 'CLIP_v0':
+        database_path = 'databases/faiss-index-hnsw-jinaclipv2-v0/merged_index_hnsw_jinaclipv2_v0.bin'
+        image_info_dict_path = 'databases/faiss-index-hnsw-jinaclipv2-v0/image_info_dict.json'
+    else:
+        raise ValueError("Unsupported database name. Choose 'CLIP_v0'.")
+    logger.info(f"Load database {database_name}: DONE!")
+
+    # Load the image info dictionary from the JSON file
+    image_info_dict = load_annotation(image_info_dict_path)
     logger.info(f"Load annotation {image_info_dict_path}: DONE!")
-    return image_info_dict
 
+    # Load the FAISS index from the binary file
+    index_hnsw = faiss.read_index(database_path)
+    # adjust runtime parameters for HNSW index, 
+    # more higher = more accurate but slower, no need to rebuild     the index
+    index_hnsw.hnsw.efSearch = 128  
+
+    # Debugging: Log the number of entries in the index and metadata
+    logger.info(f'Index loaded: ntotal={index_hnsw.ntotal}, dimension={index_hnsw.d}')
+    logger.info(f'Metadata loaded: {len(image_info_dict)} entries')
+    assert index_hnsw.ntotal == len(image_info_dict), 'Mismatch between index entries and metadata entries!'
+
+    # Log a sample entry from the metadata for verification
+    _sample_key = next(iter(image_info_dict))
+    logger.info(f"Sample metadata entry (key={_sample_key}):")
+    logger.info(image_info_dict[_sample_key])
+
+    # Log that the HNSW index is ready
+    logger.info(f"The HNSW index for {database_name} is ready!!!")
+
+    return index_hnsw, image_info_dict
+
+def load_annotation(image_info_dict_path):
+    # Load the image info dictionary from a JSON file
+    try:
+        with open(image_info_dict_path, 'r') as openfile:
+            image_info_dict = json.load(openfile)
+        return image_info_dict
+    except Exception as e:
+        logger.error(f"Error loading annotation from {image_info_dict_path}: {e}")
+        return None
+    
 def load_encoded_frames(device, encoded_frames_path = 'database/encoded_frames.pt'):
+    # Load the encoded frames from a PyTorch file
     encoded_frames = torch.load(encoded_frames_path, 
                                 map_location=device, 
                                 weights_only=True)
     logger.info(f"Load encoded frames {encoded_frames_path}: DONE!")
     return encoded_frames
-
-def faiss_database_processing(database_name):
-    num_threads = multiprocessing.cpu_count()
-    logger.info(f"Number of threads: {num_threads}")
-    if database_name == 'CLIP_v0':
-        database_path = 'database/merged_index_hnsw_baseline_v0.bin'
-    elif database_name == 'CLIP_v2':
-        database_path = 'database/merged_index_hnsw_baseline_v2.bin'
-    else:
-        raise ValueError("Unsupported database name. Choose 'CLIP_v0' or 'CLIP_v2'.")
-    logger.info(f"Load database {database_name}: DONE!")
-    faiss.omp_set_num_threads(num_threads)
-    index_hnsw = faiss.read_index(database_path, faiss.IO_FLAG_MMAP)
-    logger.info(f"The HNSW index for {database_name} is ready!!!")
-    return index_hnsw
