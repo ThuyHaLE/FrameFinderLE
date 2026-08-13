@@ -16,7 +16,7 @@ export function SearchProvider({ children }) {
   const [activeTypeKey, setActiveTypeKey] = useState(DEFAULT_QUERY_TYPE_KEY);
   const [fieldValues, setFieldValues] = useState(emptyFieldValues(DEFAULT_QUERY_TYPE_KEY));
 
-  const [useKeywords, setUseKeywords] = useState(true);
+  const [useKeywords, setUseKeywords] = useState(false);
   const [keywords, setKeywords] = useState([]);
 
   const [k, setK] = useState(100);
