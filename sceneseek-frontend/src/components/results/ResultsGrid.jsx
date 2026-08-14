@@ -4,6 +4,7 @@ import { useSearchContext } from "../../context/SearchContext";
 import GalleryItem from "./GalleryItem";
 import ClusterGalleryItem from "./ClusterGalleryItem";
 import Pagination from "./Pagination";
+import SkeletonGrid from "./SkeletonGrid";
 
 export default function ResultsGrid() {
   const {
@@ -24,6 +25,7 @@ export default function ResultsGrid() {
     similarPage,
     similarTotalPages,
     changeSimilarPage,
+    imagesPerPage,
   } = useSearchContext();
 
   if (viewMode === "similar") {
@@ -41,7 +43,7 @@ export default function ResultsGrid() {
           )}
         </div>
 
-        {similarLoading && <p className="ss-results-status">Đang tải...</p>}
+        {similarLoading && <SkeletonGrid count={imagesPerPage} />}
         {similarError && <p className="ss-results-status ss-results-status--error">{similarError}</p>}
 
         {!similarLoading && !similarError && (
@@ -65,7 +67,7 @@ export default function ResultsGrid() {
     );
   }
 
-  if (loading) return <p className="ss-results-status">Đang tải kết quả...</p>;
+  if (loading) return <SkeletonGrid count={imagesPerPage} />;
   if (results.length === 0) {
     return <p className="ss-results-status">Chưa có kết quả. Hãy nhập mô tả và tìm kiếm.</p>;
   }

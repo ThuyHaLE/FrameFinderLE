@@ -224,7 +224,7 @@ export async function fetchKeyframes({ page = 1, perPage = 50, videoId = "", tim
  * with fake similarity scores, excluding the query frame itself.
  */
 export async function getSimilarFrames(dbIdx, opts = {}) {
-  const { page = 1, perPage = 20, topK = 50 } = opts;
+  const { page = 1, perPage = 50, topK = 100 } = opts;
 
   const params = new URLSearchParams({
     page: String(page),

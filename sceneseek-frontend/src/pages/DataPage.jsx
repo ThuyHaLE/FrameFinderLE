@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useMemo } from "react";
 import { fetchKeyframes } from "../api/client";
 import GalleryItem from "../components/results/GalleryItem";
 import Pagination from "../components/results/Pagination";
+import SkeletonGrid from "../components/results/SkeletonGrid";
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -339,7 +340,7 @@ export default function DataPage() {
       </form>
 
       {loading ? (
-        <p className="ss-results-status">Đang tải...</p>
+        <SkeletonGrid count={50} />
       ) : keyframes.length === 0 ? (
         <p className="ss-results-status">Không tìm thấy frame nào phù hợp.</p>
       ) : (

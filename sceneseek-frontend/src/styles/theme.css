@@ -536,3 +536,29 @@ body {
   padding: 0;
   min-width: 0; /* default fieldset has min-width: min-content, which can break flex/grid layouts */
 }
+
+/* ---------- SkeletonGrid ---------- */
+.ss-skeleton-item {
+  aspect-ratio: 16 / 9;
+  background: #23233a;
+  border-radius: 8px;
+  overflow: hidden;
+  position: relative;
+}
+
+.ss-skeleton-shimmer {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.08),
+    transparent
+  );
+  animation: ss-shimmer 1.3s infinite;
+}
+
+@keyframes ss-shimmer {
+  from { transform: translateX(-100%); }
+  to   { transform: translateX(100%); }
+}
