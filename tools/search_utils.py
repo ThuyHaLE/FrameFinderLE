@@ -1,22 +1,24 @@
+# tools/search_utils.py
+
 """
-tools/search_utils.py — Search helpers dùng chung cho search_router.py
-====================================================================
-Chứa:
-    search(...)                 — encode 1 query, search FAISS, trả top-k
-    search_batch(...)           — encode nhiều query cùng lúc (hiệu quả hơn)
-    pair_boundary_results(...)  — ghép cặp (start, end) cho Type 2
+Search helpers shared for search_router.py
 
-Thiết kế: các hàm nhận index/device/image_info_dict như PARAMETER
-(default lấy từ model_state nếu không truyền), để:
-  - Router gọi bằng giá trị lấy từ Depends() — giữ đúng pattern DI
-    mà deps.py đã xây (dễ mock khi test).
-  - Notebook / script độc lập vẫn gọi được bình thường, không cần
-    đổi gì (không truyền gì thì tự lấy từ model_state).
+Includes:
+    search(...)                 — encode 1 query, search FAISS, return top-k
+    search_batch(...)           — encode lots of queries at once (more efficient)
+    pair_boundary_results(...)  — get pairs (start, end) for Type 2
 
-Lưu ý về field name: IMAGE_INFO_DICT dùng tên GỐC từ JSON annotation
-(video_ID, time_in_seconds, frame_ID...), KHÔNG giống tên đã chuẩn
-hoá trong state.ALL_FRAMES (video_id, timestamp_sec, db_idx...).
-Mọi so sánh/join trong file này phải dùng tên gốc.
+Architecture note:
+functions here are designed to accept index/device/image_info_dict as PARAMETERS
+(defaulting to model_state if not passed), so that:
+    - Router can call with values from Depends() — keeping the DI pattern
+        that deps.py has built (easy to mock for testing).
+    - Notebook / standalone script can still call normally, without
+        changing anything (if nothing is passed, it will default to model_state).
+
+Note on field names: IMAGE_INFO_DICT uses the ORIGINAL names from the JSON annotation
+(video_ID, time_in_seconds, frame_ID...), NOT the normalized names in state.ALL_FRAMES (video_id, timestamp_sec, db_idx...).
+All comparisons/joins in this file must use the original names.
 """
 
 from typing import List, Optional
@@ -25,25 +27,28 @@ from tools.faiss_retrieval import k_image_search
 from tools.query_encoding import encode_texts
 from utils import build_thumbnail_url
 
-# Lookup frame_path -> db_idx, build 1 lần khi module được import.
-# Dùng để nối kết quả FAISS (không có db_idx) về state.ALL_FRAMES
-# (có db_idx, dùng cho feedback/like-dislike).
-#
-# QUAN TRỌNG: chỉ dùng lookup này nếu đã xác nhận frame_ID trong
-# IMAGE_INFO_DICT KHÔNG trùng với db_idx trong state.ALL_FRAMES.
-# Nếu trùng, có thể bỏ bước join này và dùng trực tiếp info["frame_ID"].
+"""
+Lookup frame_path -> db_idx, build 1 time when module is imported.
+Used to join FAISS results (which don't have db_idx) back to state.ALL_FRAMES
+(which has db_idx, used for feedback/like-dislike).
+
+IMPORTANT: only use this lookup if you've confirmed that frame_ID in
+IMAGE_INFO_DICT does NOT overlap with db_idx in state.ALL_FRAMES.
+If they do overlap, you can skip this join step and use info["frame_ID"] directly.
+"""
+
 try:
     import state
     _FRAME_PATH_TO_DB_IDX = {
         item["frame_path"]: item["db_idx"] for item in state.ALL_FRAMES
     }
 except Exception:
-    # Cho phép file này chạy độc lập trong notebook không có state.py
+    # Allow this file to run independently in a notebook without state.py
     _FRAME_PATH_TO_DB_IDX = {}
 
 
 def _enrich(info: dict, dist: float, idx: int) -> dict:
-    """Gắn thêm faiss_idx, distance, db_idx, thumbnail vào 1 record kết quả."""
+    """Add faiss_idx, distance, db_idx, thumbnail to a result record."""
     info = dict(info)
     info["faiss_idx"] = int(idx)
     info["distance"] = float(dist)
@@ -52,25 +57,21 @@ def _enrich(info: dict, dist: float, idx: int) -> dict:
     return info
 
 
-def search_batch(
-    queries: List[str],
-    k: int = 5,
-    truncate_dim: Optional[int] = None,
-    index=None,
-    device=None,
-    image_info_dict: Optional[dict] = None,
-) -> List[List[dict]]:
+def search_batch(queries: List[str], k: int = 5, 
+                 truncate_dim: Optional[int] = None,
+                 index=None, device=None, 
+                 image_info_dict: Optional[dict] = None,) -> List[List[dict]]:
     """
-    Tìm top-k cho nhiều query cùng lúc — hiệu quả hơn gọi search() lặp lại
-    vì encode 1 lần.
+    Find top-k keyframes for multiple queries at once — more efficient than calling search() repeatedly
+    because it encodes the queries only once.
 
-    :param queries: list các câu query
-    :param k: số kết quả trả về cho MỖI query
-    :param truncate_dim: PHẢI khớp với truncate_dim đã dùng khi encode ảnh
-    :param index: FAISS/HNSW index; mặc định model_state.CLIPV0_HNSW
-    :param device: mặc định model_state.DEVICE
-    :param image_info_dict: mặc định model_state.IMAGE_INFO_DICT
-    :return: list[list[dict]] — 1 list kết quả cho mỗi query, theo đúng thứ tự input
+    :param queries: list of query strings
+    :param k: number of results to return for EACH query
+    :param truncate_dim: MUST match the truncate_dim used when encoding images
+    :param index: FAISS/HNSW index; defaults to model_state.CLIPV
+    :param device: defaults to model_state.DEVICE
+    :param image_info_dict: defaults to model_state.IMAGE_INFO_DICT
+    :return: list[list[dict]] — a list of results for each query, in the same order as the input
     """
     index = index if index is not None else model_state.CLIPV0_HNSW
     device = device if device is not None else model_state.DEVICE
@@ -99,15 +100,9 @@ def search_batch(
     return all_results
 
 
-def search(
-    query: str,
-    k: int = 5,
-    truncate_dim: Optional[int] = None,
-    index=None,
-    device=None,
-    image_info_dict: Optional[dict] = None,
-) -> List[dict]:
-    """Tìm top-k keyframe khớp nhất với 1 câu query. Wrapper của search_batch()."""
+def search(query: str, k: int = 5, truncate_dim: Optional[int] = None,
+           index=None, device=None, image_info_dict: Optional[dict] = None,) -> List[dict]:
+    """Find top-keyframe matches for a single query. Wrapper around search_batch()."""
     return search_batch(
         [query], k=k, truncate_dim=truncate_dim,
         index=index, device=device, image_info_dict=image_info_dict,
