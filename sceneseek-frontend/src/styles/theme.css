@@ -529,3 +529,10 @@ body {
 .ss-gallery-item__similar-btn:hover {
   background: rgba(0, 0, 0, 0.8);
 }
+
+.ss-form-fieldset {
+  border: none;
+  margin: 0;
+  padding: 0;
+  min-width: 0; /* default fieldset has min-width: min-content, which can break flex/grid layouts */
+}

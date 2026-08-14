@@ -45,7 +45,10 @@ export default function SearchForm() {
     refreshKeywordSuggestions,
     loading,
     error,
+    viewMode,
   } = useSearchContext();
+
+  const isSimilarMode = viewMode === "similar";
 
   function handleSubmit(e) {
     e.preventDefault();
@@ -54,25 +57,27 @@ export default function SearchForm() {
 
   return (
     <form className="ss-search-form" onSubmit={handleSubmit}>
-      {activeType.fields.map((field) => (
-        <Field
-          key={field.name}
-          field={field}
-          value={fieldValues[field.name] ?? ""}
-          onChange={updateField}
-          onBlur={(text) => refreshKeywordSuggestions(text)}
-        />
-      ))}
+      <fieldset disabled={isSimilarMode} className="ss-form-fieldset">
+        {activeType.fields.map((field) => (
+          <Field
+            key={field.name}
+            field={field}
+            value={fieldValues[field.name] ?? ""}
+            onChange={updateField}
+            onBlur={(text) => refreshKeywordSuggestions(text)}
+          />
+        ))}
 
-      {activeType.supportsKeywords && <KeywordChips />}
+        {activeType.supportsKeywords && <KeywordChips />}
 
-      {error && <p className="ss-form-error">{error}</p>}
+        {error && <p className="ss-form-error">{error}</p>}
 
-      <div className="ss-form-actions">
-        <button type="submit" className="ss-btn ss-btn--primary" disabled={loading}>
-          {loading ? "Đang tìm..." : "Tìm kiếm"}
-        </button>
-      </div>
+        <div className="ss-form-actions">
+          <button type="submit" className="ss-btn ss-btn--primary" disabled={loading}>
+            {loading ? "Đang tìm..." : "Tìm kiếm"}
+          </button>
+        </div>
+      </fieldset>
     </form>
   );
 }

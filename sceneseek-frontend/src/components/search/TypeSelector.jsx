@@ -4,7 +4,8 @@ import { QUERY_TYPE_LIST } from "../../config/queryTypes";
 import { useSearchContext } from "../../context/SearchContext";
 
 export default function TypeSelector() {
-  const { activeTypeKey, selectType } = useSearchContext();
+  const { activeTypeKey, selectType, viewMode } = useSearchContext();
+  const isSimilarMode = viewMode === "similar";
 
   return (
     <div className="ss-type-selector" role="tablist" aria-label="Loại truy vấn">
@@ -15,6 +16,8 @@ export default function TypeSelector() {
           aria-selected={activeTypeKey === type.key}
           className={`ss-type-tab ${activeTypeKey === type.key ? "ss-type-tab--active" : ""}`}
           onClick={() => selectType(type.key)}
+          disabled={isSimilarMode}
+          title={isSimilarMode ? "Không thể đổi loại truy vấn khi đang xem frame tương tự" : undefined}
         >
           <span className="ss-type-tab__index">{type.shortLabel}</span>
           <span className="ss-type-tab__label">{type.label}</span>

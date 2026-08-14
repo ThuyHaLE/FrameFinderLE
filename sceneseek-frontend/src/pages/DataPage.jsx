@@ -351,6 +351,7 @@ export default function DataPage() {
               allItems={keyframes}
               indexInList={i}
               showFeedback={false}
+              readOnly
             />
           ))}
         </div>

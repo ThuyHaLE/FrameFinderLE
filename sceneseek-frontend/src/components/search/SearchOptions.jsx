@@ -15,10 +15,12 @@ export default function SearchOptions() {
     refine,
     feedbackMap,
     loading,
+    viewMode,
   } = useSearchContext();
 
   const hasFeedback = Object.keys(feedbackMap).length > 0;
   const isBoundaryType = activeTypeKey === "event_boundary";
+  const isSimilarMode = viewMode === "similar";
 
   useEffect(() => {
     if (isBoundaryType && displayOption !== "sort_by_frame_index") {
@@ -36,6 +38,7 @@ export default function SearchOptions() {
           min={1}
           value={k}
           onChange={(e) => setK(Number(e.target.value) || 1)}
+          disabled={isSimilarMode}
         />
       </div>
 
@@ -45,8 +48,14 @@ export default function SearchOptions() {
           id="display_option"
           value={displayOption}
           onChange={(e) => setDisplayOption(e.target.value)}
-          disabled={isBoundaryType}
-          title={isBoundaryType ? "Cụm cảnh luôn hiển thị theo thứ tự frame" : undefined}
+          disabled={isBoundaryType || isSimilarMode}
+          title={
+            isSimilarMode
+              ? "Không thể đổi tuỳ chọn khi đang xem frame tương tự"
+              : isBoundaryType
+              ? "Cụm cảnh luôn hiển thị theo thứ tự frame"
+              : undefined
+          }
         >
           <option value="sort_by_frame_index">Thứ tự frame</option>
           <option value="group_by_videoid">Nhóm theo Video ID</option>
@@ -59,6 +68,7 @@ export default function SearchOptions() {
           id="images_per_page"
           value={imagesPerPage}
           onChange={(e) => setImagesPerPage(Number(e.target.value))}
+          disabled={isSimilarMode}
         >
           {[10, 20, 30, 40, 50, 100].map((n) => (
             <option key={n} value={n}>
@@ -72,8 +82,14 @@ export default function SearchOptions() {
         type="button"
         className="ss-btn ss-btn--secondary"
         onClick={refine}
-        disabled={!hasFeedback || loading}
-        title={hasFeedback ? "Tinh chỉnh kết quả theo feedback" : "Cần like/dislike trước khi refine"}
+        disabled={!hasFeedback || loading || isSimilarMode}
+        title={
+          isSimilarMode
+            ? "Không thể refine khi đang xem frame tương tự"
+            : hasFeedback
+            ? "Tinh chỉnh kết quả theo feedback"
+            : "Cần like/dislike trước khi refine"
+        }
       >
         Refine
       </button>
