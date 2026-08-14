@@ -507,7 +507,7 @@ body {
 }
 
 /* ---------- SearchSimilar ---------- */
-.ss-gallery-item__image-btn {
+.ss-gallery-item__image-wrap {
   position: relative;
 }
 .ss-gallery-item__similar-btn {

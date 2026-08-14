@@ -1,10 +1,16 @@
-// sceneseek-frontend/src/components/results/GalleryItem.jsx
+// components/results/GalleryItem.jsx
 
 import FeedbackButtons from "./FeedbackButtons";
 import { useModal } from "../../context/ModalContext";
 
 export default function GalleryItem({
-  item,  allItems,  indexInList,  showFeedback = false,  readOnly = false,  onSearchSimilar,}) {
+  item,
+  allItems,
+  indexInList,
+  showFeedback = false,
+  readOnly = false,
+  onSearchSimilar,
+}) {
   const { openModal } = useModal();
 
   function handleOpen() {
@@ -18,7 +24,7 @@ export default function GalleryItem({
   }
 
   function handleSearchSimilar(e) {
-    e.stopPropagation(); //avoid triggering handleOpen (opening modal) when clicking the icon
+    e.stopPropagation(); // avoid triggering handleOpen (opening modal) when clicking the icon
     onSearchSimilar?.(item.db_idx);
   }
 
@@ -28,21 +34,22 @@ export default function GalleryItem({
         {item.video_id} | {item.frame_idx}
       </div>
 
-      <button type="button" className="ss-gallery-item__image-btn" onClick={handleOpen}>
-        <img src={item.thumbnail} alt={item.frame_idx} loading="lazy" />
+      <div className="ss-gallery-item__image-wrap">
+        <button type="button" className="ss-gallery-item__image-btn" onClick={handleOpen}>
+          <img src={item.thumbnail} alt={item.frame_idx} loading="lazy" />
+        </button>
 
-        {/* readOnly = stay at similar-tab -> NOT allowed to search for similar frames */}
         {!readOnly && (
-          <span
-            role="button"
+          <button
+            type="button"
             aria-label="Tìm frame tương tự"
             className="ss-gallery-item__similar-btn"
             onClick={handleSearchSimilar}
           >
             🔍
-          </span>
+          </button>
         )}
-      </button>
+      </div>
 
       {showFeedback && !readOnly && <FeedbackButtons dbIdx={item.db_idx} feedback={item.feedback} />}
     </div>

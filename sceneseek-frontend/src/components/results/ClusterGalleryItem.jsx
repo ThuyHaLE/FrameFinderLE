@@ -1,4 +1,4 @@
-// sceneseek-frontend/src/components/results/ClusterGalleryItem.jsx
+// components/results/ClusterGalleryItem.jsx
 
 import FeedbackButtons from "./FeedbackButtons";
 import { useModal } from "../../context/ModalContext";
@@ -30,17 +30,20 @@ export default function ClusterGalleryItem({ cluster, onSearchSimilar }) {
       <div className="ss-cluster-item__strip">
         {cluster.frames.map((frame, i) => (
           <div className="ss-cluster-frame" key={frame.db_idx}>
-            <button type="button" className="ss-gallery-item__image-btn" onClick={() => openFrame(i)}>
-              <img src={frame.thumbnail} alt={frame.frame_idx} loading="lazy" />
-              <span
-                role="button"
+            <div className="ss-gallery-item__image-wrap">
+              <button type="button" className="ss-gallery-item__image-btn" onClick={() => openFrame(i)}>
+                <img src={frame.thumbnail} alt={frame.frame_idx} loading="lazy" />
+              </button>
+
+              <button
+                type="button"
                 aria-label="Tìm frame tương tự"
                 className="ss-gallery-item__similar-btn"
                 onClick={(e) => handleSearchSimilar(e, frame.db_idx)}
               >
                 🔍
-              </span>
-            </button>
+              </button>
+            </div>
             <FeedbackButtons dbIdx={frame.db_idx} feedback={frame.feedback} />
           </div>
         ))}
