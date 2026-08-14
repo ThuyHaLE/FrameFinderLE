@@ -1,3 +1,5 @@
+// sceneseek-frontend/src/App.jsx
+
 import { useState } from "react";
 import { ModalProvider } from "./context/ModalContext";
 import Layout from "./components/layout/Layout";

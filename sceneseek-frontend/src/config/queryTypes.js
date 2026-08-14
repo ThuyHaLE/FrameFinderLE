@@ -1,3 +1,5 @@
+// sceneseek-frontend/src/config/queryTypes.js
+
 /**
  * Single source of truth for query types.
  *

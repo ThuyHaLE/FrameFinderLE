@@ -1,16 +1,17 @@
+# app.py
+
 """
-app.py — SceneSeek Backend
-===========================
-Toàn bộ route đã được tách vào routers/*.py, mỗi route trả 501 khi
-chưa implement. Client (client.js) sẽ catch 501 và tự fallback về
-mock data ở frontend.
+SceneSeek Backend
 
-Để "activate" một route:
-1. Mở router tương ứng trong routers/, implement logic thật.
-2. Xoá dòng `raise NOT_IMPLEMENTED`.
-3. Client sẽ tự nhận ra HTTP 200 và dùng data thật — không cần đổi gì ở frontend.
+All routers already split into routers/*.py, each route returns 501 when not implemented.
+Client (client.js) will catch 501 and fallback to mock data on the frontend.
 
-Chạy:
+To "activate" a route:
+1. Open the corresponding router in routers/, implement the real logic.
+2. Remove the line `raise NOT_IMPLEMENTED`.
+3. Client will automatically detect HTTP 200 and use real data — no frontend changes needed.
+
+Run:
     pip install fastapi uvicorn pydantic
     uvicorn app:app --reload --port 8000
 """
@@ -23,8 +24,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
-import state  # noqa: F401  import để trigger load dataset 1 lần lúc startup
-import model_state  # noqa: F401  import để trigger load model + FAISS index 1 lần lúc startup
+import state  # noqa: F401  import to trigger load dataset once at startup
+import model_state  # noqa: F401  import to trigger load model + FAISS index once at startup
 
 # ---------------------------------------------------------------------------
 # App setup
@@ -34,7 +35,7 @@ app = FastAPI(title="SceneSeek API", version="0.1.0")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],   # thu hẹp lại khi deploy production
+    allow_origins=["*"],   # narrow down to frontend domain when deploy production
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -43,11 +44,11 @@ app.add_middleware(
 # Routers
 # ---------------------------------------------------------------------------
 # Dataset (state.ALL_FRAMES, state.VIDEO_INDEX, state.L_OPTIONS,
-# state.FEEDBACK_STORE) và model/search index (model_state.DEVICE,
+# state.FEEDBACK_STORE) and model/search index (model_state.DEVICE,
 # model_state.MODEL, model_state.ENCODED_FRAMES, model_state.CLIPV0_HNSW,
-# model_state.IMAGE_INFO_DICT) đã được load & cache 1 lần khi import
-# state / model_state ở trên chạy — mỗi router lấy qua deps.py,
-# KHÔNG dùng app.state nữa.
+# model_state.CLIPV0_IMAGE_INFO_DICT) already been loaded & cached 1 time when imported
+# state / model_state above run - each router get their dependencies via deps.py,
+# DO NOT use app.state anymore.
 
 from routers.data_router import router as data_router
 from routers.search_router import router as search_router
@@ -75,8 +76,8 @@ if os.path.isdir(KEYFRAME_DIR):
 
 # ---------------------------------------------------------------------------
 # Serve React production build
-# (comment out khi đang dev với 2 server riêng — Vite + FastAPI)
-# Uncomment sau khi chạy `npm run build` và muốn deploy 1 server duy nhất.
+# (comment out when dev with 2 different server — Vite + FastAPI)
+# Uncomment after running `npm run build` and wanting to deploy a single server.
 # ---------------------------------------------------------------------------
 
 dist_dir = os.path.join(os.path.dirname(__file__), "sceneseek-frontend", "dist")

@@ -1,9 +1,11 @@
+// sceneseek-frontend/src/components/results/Pagination.jsx
+
 import { useState, useEffect } from "react";
 
 export default function Pagination({ page, totalPages, onChange }) {
   const [draft, setDraft] = useState(String(page));
 
-  // Sync draft khi page thay đổi từ bên ngoài (vd filter mới reset về trang 1)
+  // Sync draft when page changes from outside (e.g., new filter resets to page 1)
   useEffect(() => {
     setDraft(String(page));
   }, [page]);
@@ -15,7 +17,7 @@ export default function Pagination({ page, totalPages, onChange }) {
     if (!isNaN(n) && n >= 1 && n <= totalPages && n !== page) {
       onChange(n);
     } else {
-      // Nếu nhập sai → reset về trang hiện tại
+      // If input is invalid → reset to current page
       setDraft(String(page));
     }
   }

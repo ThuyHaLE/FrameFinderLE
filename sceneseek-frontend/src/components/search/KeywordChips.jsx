@@ -1,3 +1,5 @@
+// sceneseek-frontend/src/components/search/KeywordChips.jsx
+
 import { useState } from "react";
 import { useSearchContext } from "../../context/SearchContext";
 

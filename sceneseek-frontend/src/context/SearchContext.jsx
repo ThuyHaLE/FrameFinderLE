@@ -1,10 +1,18 @@
-import { createContext, useContext, useState, useCallback } from "react";
+// sceneseek-frontend/src/context/SearchContext.jsx
+
+import { createContext, useContext, useState, useCallback, useRef } from "react";
 import {
   DEFAULT_QUERY_TYPE_KEY,
   emptyFieldValues,
   getQueryType,
 } from "../config/queryTypes";
-import { searchByType, refineResults, sendFeedback, getKeywordSuggestions } from "../api/client";
+import {
+  searchByType,
+  refineResults,
+  sendFeedback,
+  getKeywordSuggestions,
+  getSimilarFrames,
+} from "../api/client";
 
 const SearchContext = createContext(null);
 
@@ -35,6 +43,73 @@ export function SearchProvider({ children }) {
   const [error, setError] = useState(null);
 
   const activeType = getQueryType(activeTypeKey);
+
+  // --- Similar-tab state (read-only) ---
+  const [viewMode, setViewMode] = useState("search"); // 'search' | 'similar'
+  const [similarQueryFrame, setSimilarQueryFrame] = useState(null);
+  const [similarResults, setSimilarResults] = useState([]);
+  const [similarPage, setSimilarPage] = useState(1);
+  const [similarTotalPages, setSimilarTotalPages] = useState(1);
+  const [similarTotalImages, setSimilarTotalImages] = useState(0);
+  const [similarLoading, setSimilarLoading] = useState(false);
+  const [similarError, setSimilarError] = useState(null);
+
+  // db_idx of the frame that was used to open the similar-tab. This is used to refetch similar results when changing pages.
+  const similarDbIdxRef = useRef(null);
+
+  const openSimilar = useCallback(async (dbIdx) => {
+    // Ignore if already in similar-tab (to avoid search in similar-tab, which is not allowed)
+    // (icon 🔍 is already hidden in readOnly mode, so this is just a precaution)
+    if (viewMode === "similar") return;
+
+    similarDbIdxRef.current = dbIdx;
+    setSimilarLoading(true);
+    setSimilarError(null);
+    setViewMode("similar"); // move to similar-tab immediately, show loading in similar view
+
+    try {
+      const res = await getSimilarFrames(dbIdx, { page: 1 });
+      setSimilarQueryFrame(res.queryFrame);
+      setSimilarResults(res.results);
+      setSimilarTotalImages(res.totalImages);
+      setSimilarTotalPages(res.totalPages);
+      setSimilarPage(res.page);
+    } catch (e) {
+      setSimilarError("Không thể tải các frame tương tự. Vui lòng thử lại.");
+    } finally {
+      setSimilarLoading(false);
+    }
+  }, [viewMode]);
+
+  const changeSimilarPage = useCallback(async (nextPage) => {
+    const dbIdx = similarDbIdxRef.current;
+    if (dbIdx == null) return;
+
+    setSimilarLoading(true);
+    setSimilarError(null);
+    try {
+      const res = await getSimilarFrames(dbIdx, { page: nextPage });
+      setSimilarResults(res.results);
+      setSimilarTotalImages(res.totalImages);
+      setSimilarTotalPages(res.totalPages);
+      setSimilarPage(res.page);
+    } catch (e) {
+      setSimilarError("Không thể chuyển trang. Vui lòng thử lại.");
+    } finally {
+      setSimilarLoading(false);
+    }
+  }, []);
+
+  // Exit similar-tab = restore the original search snapshot intact.
+  // Since openSimilar does NOT touch the search results/page/... state, 
+  // we can just switch viewMode back to "search" to restore the original search snapshot.
+  const closeSimilar = useCallback(() => {
+    setViewMode("search");
+    similarDbIdxRef.current = null;
+    setSimilarQueryFrame(null);
+    setSimilarResults([]);
+    setSimilarError(null);
+  }, []);
 
   const selectType = useCallback((typeKey) => {
     setActiveTypeKey(typeKey);
@@ -190,6 +265,17 @@ export function SearchProvider({ children }) {
     setFeedback,
     loading,
     error,
+    viewMode,
+    openSimilar,
+    closeSimilar,
+    changeSimilarPage,
+    similarQueryFrame,
+    similarResults,
+    similarPage,
+    similarTotalPages,
+    similarTotalImages,
+    similarLoading,
+    similarError,
   };
 
   return <SearchContext.Provider value={value}>{children}</SearchContext.Provider>;

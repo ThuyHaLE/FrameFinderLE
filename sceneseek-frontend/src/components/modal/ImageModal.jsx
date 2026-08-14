@@ -1,3 +1,5 @@
+// sceneseek-frontend/src/components/modal/ImageModal.jsx
+
 import { useEffect } from "react";
 import { useModal } from "../../context/ModalContext";
 
@@ -19,7 +21,7 @@ export default function ImageModal() {
 
   const current = images[index];
 
-  // Format timestamp: strip microseconds nếu có ("0:00:08.300000" → "0:00:08.3")
+  // Format timestamp: strip microseconds if any ("0:00:08.300000" → "0:00:08.3")
   function formatTimestamp(ts) {
     if (!ts) return "";
     return ts.replace(/(\.\d*?)0+$/, "$1").replace(/\.$/, "");
@@ -44,7 +46,7 @@ export default function ImageModal() {
           <span className="ss-modal-timestamp">{formatTimestamp(current.timestamp)}</span>
         </div>
 
-        {/* Secondary: vị trí trong danh sách */}
+        {/* Secondary: position in the list */}
         <div className="ss-modal-secondary-meta">
           <span>{index + 1} / {images.length}</span>
         </div>

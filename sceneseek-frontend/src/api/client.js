@@ -1,20 +1,22 @@
+// sceneseek-frontend/src/api/client.js
+
 /**
- * api/client.js — SceneSeek API client
+ * SceneSeek API client
  * =====================================
  * Pattern: try real backend first, fallback to mock if it fails.
  *
- * - Backend route đã implement → trả HTTP 200 → dùng data thật.
- * - Backend route chưa implement → trả 501 → catch → fallback mock.
- * - Backend không chạy (network error) → catch → fallback mock.
+ * - Backend route is implemented → return HTTP 200 → use real data.
+ * - Backend route is NOT implemented → return 501 → catch → fallback mock.
+ * - Backend is not running (network error) → catch → fallback mock.
  *
- * Để update từng route: implement route trong app.py, xoá `throw` / 501,
- * trả data thật → client tự nhận ra và dừng dùng mock cho route đó.
- * Không cần đổi flag hay build lại.
+ * To update each route: implement the route in app.py, remove `throw` / 501,
+ * return real data → client will automatically detect and stop using mock for that route.
+ * No need to change flags or rebuild.
  */
 
 import { getQueryType } from "../config/queryTypes";
 
-const API_BASE = ""; // e.g. "http://localhost:8000" khi chạy 2 server riêng
+const API_BASE = ""; // e.g. "http://localhost:8000" when running 2 different servers
 
 // ---------------------------------------------------------------------------
 // Core fetch helper
@@ -26,15 +28,15 @@ async function request(path, options = {}) {
     ...options,
   });
   if (!res.ok) {
-    // 501 = chưa implement, 4xx/5xx khác = lỗi thật
+    // 501 = not implemented, 4xx/5xx others = real error
     throw new Error(`API ${res.status}: ${path}`);
   }
   return res.json();
 }
 
 /**
- * Thử gọi real backend. Nếu thất bại vì bất kỳ lý do gì
- * (network, 501, 4xx, 5xx) → trả null để caller fallback về mock.
+ * Try calling the real backend. If it fails for any reason
+ * (network, 501, 4xx, 5xx) → return null to let the caller fallback to mock.
  */
 async function tryReal(fn) {
   try {
@@ -55,6 +57,7 @@ function makeMockResult(i, videoId) {
     db_idx: i,
     video_id: vid,
     frame_id: `F${String(i).padStart(4, "0")}`,
+    frame_idx: i, 
     timestamp: 12.5 * i,
     thumbnail: `https://placehold.co/320x180/1a1a2e/ffffff?text=${vid}`,
     description: `[Mock] Frame ${i} — ${vid}`,
@@ -213,4 +216,40 @@ export async function fetchKeyframes({ page = 1, perPage = 50, videoId = "", tim
     : MOCK_POOL;
   const { items, total, totalPages } = paginate(pool, page, perPage);
   return { keyframes: items, total, totalPages };
+}
+
+/**
+ * Find frames similar to a given frame (click 🔍 on a GalleryItem).
+ * Tries GET /api/search/similar/{dbIdx}; falls back to a mock pool
+ * with fake similarity scores, excluding the query frame itself.
+ */
+export async function getSimilarFrames(dbIdx, opts = {}) {
+  const { page = 1, perPage = 20, topK = 50 } = opts;
+
+  const params = new URLSearchParams({
+    page: String(page),
+    per_page: String(perPage),
+    top_k: String(topK),
+  });
+
+  const real = await tryReal(() => request(`/api/search/similar/${dbIdx}?${params.toString()}`));
+  if (real) {
+    return {
+      queryFrame: real.queryFrame,
+      results: real.items,
+      totalImages: real.total,
+      totalPages: real.totalPages,
+      page: real.page,
+    };
+  }
+
+  await mockDelay();
+  const queryFrame = MOCK_POOL.find((f) => f.db_idx === dbIdx) ?? makeMockResult(dbIdx);
+  const pool = MOCK_POOL
+    .filter((f) => f.db_idx !== dbIdx)
+    .map((f) => ({ ...f, similarity: Math.max(0, 1 - Math.random() * 0.4) }))
+    .sort((a, b) => b.similarity - a.similarity)
+    .slice(0, topK);
+  const { items, total, totalPages, page: safePage } = paginate(pool, page, perPage);
+  return { queryFrame, results: items, totalImages: total, totalPages, page: safePage };
 }

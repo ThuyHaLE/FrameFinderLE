@@ -1,18 +1,19 @@
-"""
-deps.py — Dependency helpers để router lấy state qua Depends(...).
-====================================================================
-State thật sự được load 1 lần trong state.py (dataset) và
-model_state.py (model + search index) lúc các module đó được
-import (module-level cache, không phải chạy lại mỗi request).
-Ở đây chỉ expose lại dưới dạng Depends() để:
-  - Router không cần `import state` / `import model_state` trực tiếp
-    (dễ mock khi test: override_dependency trong test thay vì
-    monkeypatch module).
-  - Nếu sau này đổi nguồn state (VD: từ module sang Redis/DB,
-    hoặc đổi index sang service riêng), chỉ cần sửa ở đây, router
-    không đổi gì.
+# deps.py
 
-Cách dùng trong router:
+"""
+Dependency helpers for routers to get state via Depends(...).
+
+State is actually loaded once in state.py (dataset) and 
+model_state.py (model + search index) when those modules are imported (module-level cache, not re-run on each request).
+
+Here we just expose them as Depends() so that:
+  - Routers don't need to `import state` / `import model_state` directly
+    (easier to mock in tests: override_dependency in test instead of
+    monkeypatching the module).
+  - If we later change the source of state (e.g., from module to Redis/DB, 
+    or change the index to a separate service), we only need to change it here, routers don't change.
+
+Usage in router:
     from deps import get_all_frames, get_model
     ...
     def route(
@@ -66,5 +67,5 @@ def get_clipv0_index():
     return model_state.CLIPV0_HNSW
 
 
-def get_image_info_dict():
-    return model_state.IMAGE_INFO_DICT
+def get_clipv0_image_info_dict():
+    return model_state.CLIPV0_IMAGE_INFO_DICT

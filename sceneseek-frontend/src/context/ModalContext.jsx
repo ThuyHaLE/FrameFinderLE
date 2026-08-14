@@ -1,3 +1,5 @@
+// sceneseek-frontend/src/context/ModalContext.jsx
+
 import { createContext, useContext, useState, useCallback } from "react";
 
 const ModalContext = createContext(null);

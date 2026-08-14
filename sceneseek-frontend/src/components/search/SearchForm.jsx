@@ -1,3 +1,5 @@
+// sceneseek-frontend/src/components/search/SearchForm.jsx
+
 import { useSearchContext } from "../../context/SearchContext";
 import KeywordChips from "./KeywordChips";
 

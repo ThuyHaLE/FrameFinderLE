@@ -1,3 +1,5 @@
+// sceneseek-frontend/src/components/results/FeedbackButtons.jsx
+
 import { useSearchContext } from "../../context/SearchContext";
 
 export default function FeedbackButtons({ dbIdx, feedback }) {

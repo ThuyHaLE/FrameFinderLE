@@ -1,3 +1,5 @@
+// sceneseek-frontend/src/components/search/TypeSelector.jsx
+
 import { QUERY_TYPE_LIST } from "../../config/queryTypes";
 import { useSearchContext } from "../../context/SearchContext";
 

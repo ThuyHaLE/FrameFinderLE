@@ -1,3 +1,5 @@
+// sceneseek-frontend/src/pages/HomePage.jsx
+
 import { SearchProvider } from "../context/SearchContext";
 import TypeSelector from "../components/search/TypeSelector";
 import SearchForm from "../components/search/SearchForm";

@@ -1,3 +1,5 @@
+// sceneseek-frontend/src/pages/DataPage.jsx
+
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { fetchKeyframes } from "../api/client";
 import GalleryItem from "../components/results/GalleryItem";
@@ -7,7 +9,7 @@ import Pagination from "../components/results/Pagination";
 // Constants
 // ---------------------------------------------------------------------------
 
-// Fallback khi chưa fetch được /api/videos/l-options (hoặc lỗi mạng).
+// Fallback when NOT able to fetch /api/videos/l-options (or network error).
 const FALLBACK_L_OPTIONS = Array.from({ length: 24 }, (_, i) =>
   String(i + 1).padStart(2, "0")
 ); // ["01", "02", ..., "24"]
@@ -42,7 +44,7 @@ function validateTimestamp(ts) {
 function TimestampInput({ id, label, value, onChange, placeholder = "hh:mm:ss", fallback = "00:00:00" }) {
   function shift(delta) {
     const base = parseTimestamp(value);
-    // Nếu NaN (rỗng hoặc sai format) → dùng fallback thay vì tính từ NaN
+    // If NaN (empty or wrong format) → use fallback instead of calculating from NaN
     const startFrom = (base === null || isNaN(base))
       ? (parseTimestamp(fallback) ?? 0)
       : base;
@@ -94,7 +96,7 @@ function VideoIDSelector({ videoId, onChange, lOptions }) {
     if (lPart && vPart) {
       onChange(`L${lPart}_V${vPart.padStart(3, "0")}`); // exact: "L13_V001"
     } else if (lPart) {
-      onChange(`L${lPart}`); // prefix: "L13" → backend lấy hết V cho L này
+      onChange(`L${lPart}`); // prefix: "L13" → backend get all V for this L
     } else {
       onChange(""); // no filter
     }
@@ -181,12 +183,12 @@ export default function DataPage() {
   const [keyframes,  setKeyframes]  = useState([]);
   const [loading,    setLoading]    = useState(false);
 
-  // Bump để ép VideoIDSelector remount (reset lPart/vPart nội bộ) khi Xoá filter —
-  // vì component đó chỉ đọc videoId prop lúc mount, không tự đồng bộ khi prop đổi.
+  // Bump to force VideoIDSelector remount (reset its internal lPart/vPart) when clearing filter —
+  // because that component only reads videoId prop on mount, doesn't auto-sync when prop changes.
   const [selectorResetKey, setSelectorResetKey] = useState(0);
 
-  // Danh sách "L" cho dropdown — lấy động từ backend (dựa trên video_ID thật
-  // có trong JSON), fallback về FALLBACK_L_OPTIONS nếu fetch lỗi.
+  // List of "L" for dropdown — fetch dynamically from backend (based on real video_IDs in JSON), 
+  // fallback to FALLBACK_L_OPTIONS if fetch fails.
   const [lOptions, setLOptions] = useState(FALLBACK_L_OPTIONS);
 
   useEffect(() => {
@@ -199,12 +201,12 @@ export default function DataPage() {
         }
       })
       .catch(() => {
-        // giữ nguyên FALLBACK_L_OPTIONS nếu lỗi
+        // keep the FALLBACK_L_OPTIONS if fetch fails
       });
     return () => { cancelled = true; };
   }, []);
 
-  // Duration fallback cho end timestamp: lấy timestamp của frame cuối trong video hiện tại
+  // Duration fallback for end timestamp: get timestamp of last frame in current video
   const endFallback = useMemo(() => {
     if (keyframes.length === 0) return "00:00:00";
     const last = keyframes.reduce((max, r) =>
@@ -242,7 +244,7 @@ export default function DataPage() {
       videoId: videoId,
       tsStart: tsStart,
       tsEnd: tsEnd,
-      ...overrides, // cho phép gọi với giá trị mới ngay lập tức, tránh closure cũ từ state chưa kịp update
+      ...overrides, // allow to call with new values immediately, avoid stale closure from state not updated yet
     };
     setLoading(true);
     try {
@@ -255,9 +257,9 @@ export default function DataPage() {
       });
       setKeyframes(res.keyframes);
       setTotalPages(res.totalPages);
-      // Dùng page đã được backend clamp (res.page) thay vì tin theo targetPage gốc,
-      // tránh trường hợp targetPage vượt quá totalPages thật (VD: đổi filter làm
-      // totalPages co lại) khiến UI hiển thị page > totalPages như "100 / 50".
+      // Use the page returned by backend (res.page) instead of trusting the original targetPage,
+      // to avoid the case where targetPage exceeds the actual totalPages (e.g., changing filter reduces totalPages),
+      // which would cause the UI to display page > totalPages like "100 / 50".
       setPage(res.page ?? targetPage);
     } finally {
       setLoading(false);
@@ -283,8 +285,8 @@ export default function DataPage() {
     setTsStart("");
     setTsEnd("");
     setFilterError(null);
-    setSelectorResetKey((k) => k + 1); // ép VideoIDSelector remount → xoá luôn lPart/vPart đang chọn
-    load(1, { videoId: "", tsStart: "", tsEnd: "" }); // reload không filter ngay lập tức
+    setSelectorResetKey((k) => k + 1); // force VideoIDSelector remount → delete selected lPart/vPart
+    load(1, { videoId: "", tsStart: "", tsEnd: "" }); // reload immediately with cleared filter
   }
 
   // -------------------------------------------------------------------------

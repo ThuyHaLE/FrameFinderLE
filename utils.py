@@ -1,8 +1,10 @@
+# utils.py
+
 """
-utils.py — Helper functions dùng chung giữa app.py và các router.
-====================================================================
-Tách riêng để router (VD: routers/data_router.py) có thể import mà
-không phải phụ thuộc vào app.py (tránh circular import).
+Helper functions shared between app.py and routers.
+
+Separated so that routers (e.g., routers/data_router.py) can import
+without depending on app.py (avoiding circular import).
 """
 
 import math
@@ -13,9 +15,9 @@ def parse_timestamp(ts: str) -> float:
     Parse timestamp string → seconds (float).
     Accepts:
         '0:00:08.300000'   annotation format
-        '00:08:30'         hh:mm:ss (paste từ video player)
+        '00:08:30'         hh:mm:ss (paste from video player)
         '00:08:30.500'     hh:mm:ss.SSS
-        '0:08'             hh:mm (không có giây)
+        '0:08'             hh:mm (not seconds)
     """
     try:
         parts = ts.strip().split(":")

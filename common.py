@@ -1,11 +1,12 @@
-"""
-common.py — Shared exception cho các route chưa implement.
-====================================================================
-Mọi router import NOT_IMPLEMENTED từ đây để dùng chung 1 message,
-tránh lặp lại HTTPException(...) ở mỗi file router.
+# common.py
 
-Lưu ý: HTTPException là instance, không phải class — dùng
-`raise NOT_IMPLEMENTED` là đủ, không cần gọi lại constructor.
+"""
+Shared exception for routes NOT implemented.
+
+All router imports NOT_IMPLEMENTED from here to use a common message,
+avoiding repeating HTTPException(...) in each router file.
+Note: HTTPException is an instance, not a class — using
+`raise NOT_IMPLEMENTED` is sufficient, no need to call the constructor again.
 """
 
 from fastapi import HTTPException

@@ -1,3 +1,5 @@
+// sceneseek-frontend/src/components/layout/Navbar.jsx
+
 export default function Navbar({ activePage, onNavigate }) {
   const links = [
     { key: "home", label: "Home" },

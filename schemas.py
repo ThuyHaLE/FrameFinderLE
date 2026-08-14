@@ -1,10 +1,12 @@
+# schemas.py
+
 """
-schemas.py — Pydantic request/response models dùng chung cho các router.
-====================================================================
-Tách riêng khỏi app.py và khỏi từng router để:
-  - Nhiều router (search_router, refine_router, ...) cùng import
-    SearchRequest mà không phải import lẫn nhau.
-  - Đổi field / validation chỉ cần sửa 1 chỗ.
+Pydantic request/response models shared across routers.
+
+Separated from app.py and individual routers to:
+  - Allow multiple routers (search_router, refine_router, ...) to import
+    SearchRequest without importing each other.
+  - Change fields/validation in one place only. 
 """
 
 from typing import List, Optional

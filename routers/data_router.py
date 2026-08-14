@@ -1,12 +1,14 @@
-"""
-routers/data_router.py — Data Browser routes
-====================================================================
-Chứa:
-    GET /api/data              — browse keyframes theo video_ID / timestamp
-    GET /api/videos/l-options  — danh sách "L" cho dropdown (cùng nhóm data)
+# routers/data_router.py
 
-State (all_frames, video_index, l_options) được lấy qua Depends() từ
-deps.py — router KHÔNG import trực tiếp `app` để tránh circular import.
+"""
+Data Browser routes
+
+Includes:
+    GET /api/data              — browse keyframes by video_ID / timestamp
+    GET /api/videos/l-options  — list of "L" for dropdown (same data group)
+
+State (all_frames, video_index, l_options) is retrieved via Depends() 
+from deps.py — router does NOT import `app` directly to avoid circular import.
 """
 
 from typing import Dict, List
@@ -21,7 +23,7 @@ router = APIRouter(prefix="/api", tags=["data"])
 
 @router.get("/videos/l-options")
 def get_l_options_route(l_options: List[str] = Depends(get_l_options)):
-    """Trả danh sách giá trị L (VD: ["01","02",...]) có thật trong dataset hiện tại."""
+    """Returns a list of valid "L" values (e.g., ["01", "02", ...]) present in the current dataset."""
     return {"lOptions": l_options}
 
 
@@ -35,31 +37,31 @@ def get_data(
     all_frames: List[dict] = Depends(get_all_frames),
     video_index: Dict[str, List[dict]] = Depends(get_video_index),
 ):
-    """Browse keyframes theo video_ID / khoảng timestamp."""
+    """Browse keyframes by video_ID / timestamp."""
 
-    # thumbnail đã được build sẵn lúc load — không cần transform lại
+    # thumbnail is already built at load time — no need to transform again
 
-    # Lấy pool theo video_ID
-    # - Không filter         → toàn bộ 200k frames
-    # - Exact "L13_V001"     → O(1) lookup từ video_index
-    # - Prefix "L13"         → gộp tất cả V của L đó (O(số video trong L))
+    # Get pool by video_ID
+    # - NOT filter           → all ~200k frames
+    # - Exact "L13_V001"     → O(1) lookup from video_index
+    # - Prefix "L13"         → combine all V of that L (O(number of videos in L))
     if not video_ID:
         items = all_frames
     elif "_V" in video_ID:
         # Exact match: "L13_V001"
         items = list(video_index.get(video_ID, []))
     else:
-        # Prefix match: "L13" → lấy tất cả key bắt đầu bằng "L13_"
+        # Prefix match: "L13" → get all keys starting with "L13_"
         prefix = f"{video_ID}_"
         items = []
         for vid_key, frames in video_index.items():
             if vid_key.startswith(prefix):
                 items.extend(frames)
-        # Sort theo video_id rồi timestamp_sec để kết quả có thứ tự nhất quán
+        # Sort by video_id and timestamp_sec for consistent ordering
         items.sort(key=lambda r: (r["video_id"], r["timestamp_sec"]))
 
-    # Filter / sort theo timestamp (chỉ apply khi có video_ID để tránh sort 200k)
-    # Dùng timestamp_sec (pre-computed float) thay vì parse string mỗi lần
+    # Filter / sort by timestamp (only apply when video_ID is specified to avoid sorting 200k items)
+    # Use timestamp_sec (pre-computed float) instead of parsing string each time
     if timestamp and video_ID:
         start_sec = parse_timestamp(timestamp)
         if timestamp_end:
@@ -70,7 +72,7 @@ def get_data(
             ]
             items = sorted(items, key=lambda r: r["timestamp_sec"])
         else:
-            # Chỉ có start → sort theo frame gần nhất từ thời điểm đó
+            # Only start timestamp provided → sort by the frame closest to that time
             items = sorted(
                 items,
                 key=lambda r: abs(r["timestamp_sec"] - start_sec),

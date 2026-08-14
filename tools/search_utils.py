@@ -68,15 +68,15 @@ def search_batch(queries: List[str], k: int = 5,
     :param queries: list of query strings
     :param k: number of results to return for EACH query
     :param truncate_dim: MUST match the truncate_dim used when encoding images
-    :param index: FAISS/HNSW index; defaults to model_state.CLIPV
+    :param index: FAISS/HNSW index; defaults to model_state.CLIPV0_HNSW
     :param device: defaults to model_state.DEVICE
-    :param image_info_dict: defaults to model_state.IMAGE_INFO_DICT
+    :param image_info_dict: defaults to model_state.CLIPV0_IMAGE_INFO_DICT
     :return: list[list[dict]] — a list of results for each query, in the same order as the input
     """
     index = index if index is not None else model_state.CLIPV0_HNSW
     device = device if device is not None else model_state.DEVICE
     image_info_dict = (
-        image_info_dict if image_info_dict is not None else model_state.IMAGE_INFO_DICT
+        image_info_dict if image_info_dict is not None else model_state.CLIPV0_IMAGE_INFO_DICT
     )
 
     query_embeddings = encode_texts(queries, truncate_dim=truncate_dim, show_progress=False)

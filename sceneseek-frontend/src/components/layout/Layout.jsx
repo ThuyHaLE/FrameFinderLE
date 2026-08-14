@@ -1,3 +1,5 @@
+// sceneseek-frontend/src/components/layout/Layout.jsx
+
 import Navbar from "./Navbar";
 import ImageModal from "../modal/ImageModal";
 

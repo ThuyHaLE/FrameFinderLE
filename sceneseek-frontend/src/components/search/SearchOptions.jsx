@@ -1,4 +1,4 @@
-// components/search/SearchOptions.jsx
+// sceneseek-frontend/src/components/search/SearchOptions.jsx
 
 import { useEffect } from "react";
 import { useSearchContext } from "../../context/SearchContext";
