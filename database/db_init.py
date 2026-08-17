@@ -43,7 +43,7 @@ def faiss_database_processing(database_name='hnsw_jinaclipv2', config_path=CONFI
             f"Choose one of: {list(db_configs.keys())}"
         )
 
-    config = db_configs[database_name]
+    config = db_configs[database_name] 
     database_path = config['index_path']
     info_dict_path = config['info_path']
 
@@ -67,7 +67,6 @@ def faiss_database_processing(database_name='hnsw_jinaclipv2', config_path=CONFI
 
     _sample_key = next(iter(image_info_dict))
     logger.info(f"Sample metadata entry (key={_sample_key}):")
-    logger.info(image_info_dict[_sample_key])
 
     logger.info(f"The index for {database_name} is ready!!!")
 
