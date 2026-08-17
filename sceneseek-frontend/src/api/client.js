@@ -199,12 +199,13 @@ export async function sendFeedback(dbIdx, action, sessionId) {
  * Browse keyframes by video_ID / timestamp (Data page).
  * Tries /api/data; falls back to mock pool filtered by videoId.
  */
-export async function fetchKeyframes({ page = 1, perPage = 50, videoId = "", timestamp = "" }) {
+export async function fetchKeyframes({ page = 1, perPage = 50, videoId = "", timestamp = "", timestamp_end = "" }) {
   const params = new URLSearchParams({
     page,
     perPage,
     ...(videoId && { video_ID: videoId }),
     ...(timestamp && { timestamp }),
+    ...(timestamp_end && { timestamp_end }),
   });
 
   const real = await tryReal(() => request(`/api/data?${params.toString()}`));
