@@ -35,8 +35,8 @@ def search_similar(query_encoding, encoded_frames=None, top_k=50) -> tuple[list[
     encoded_frames: embedding of all frames in the database, shape [N, D]
     """
 
-    # If encoded_frames is not provided, use the preloaded ENCODED_FRAMES from model_state
-    encoded_frames = encoded_frames if encoded_frames is not None else model_state.ENCODED_FRAMES
+    # If encoded_frames is not provided, use the preloaded JINACLIPV2_ENCODED_FRAMES from model_state
+    encoded_frames = encoded_frames if encoded_frames is not None else model_state.JINACLIPV2_ENCODED_FRAMES
 
     # Calculate cosine similarity between the query and each item in the database
     sims = F.cosine_similarity(query_encoding.unsqueeze(0), encoded_frames, dim=1)  # [N]

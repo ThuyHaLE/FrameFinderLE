@@ -1,0 +1,8 @@
+{
+  "jina-clip-v2": {
+    "model_name": "jinaai/jina-clip-v2"
+  },
+  "dangvantuan": {
+    "model_name": "dangvantuan/vietnamese-embedding"
+  }
+}

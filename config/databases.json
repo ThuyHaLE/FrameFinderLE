@@ -1,0 +1,16 @@
+{
+  "hnsw_jinaclipv2": {
+    "index_type": "hnsw",
+    "index_path": "static/databases/faiss-index-hnsw-jinaclipv2/merged_index_hnsw_jinaclipv2_v0.bin",
+    "info_path": "static/databases/faiss-index-hnsw-jinaclipv2/image_info_dict.json",
+    "hnsw_ef_search": 128
+  },
+  "flatip_dangvantuan": {
+    "index_type": "flat",
+    "index_path": "static/databases/faiss-index-flatip-dangvantuan/transcript_events.index",
+    "info_path": "static/databases/faiss-index-flatip-dangvantuan/transcript_id_map.json"
+  },
+  "jinaclipv2_encoded_frames": {
+    "encoded_frames_path": "static/databases/jinaclipv2_encoded_frames/encoded_frames.pt"
+  }
+}

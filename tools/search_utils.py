@@ -4,9 +4,9 @@
 Search helpers shared for search_router.py
 
 Includes:
-    search(...)                 — encode 1 query, search FAISS, return top-k
-    search_batch(...)           — encode lots of queries at once (more efficient)
-    pair_boundary_results(...)  — get pairs (start, end) for Type 2
+    search(...)                         — encode 1 query, search FAISS, return top-k
+    search_hnsw_jinaclipv2_batch(...)   — encode lots of queries at once (more efficient)
+    pair_boundary_results(...)          — get pairs (start, end) for Type 2
 
 Architecture note:
 functions here are designed to accept index/device/image_info_dict as PARAMETERS
@@ -26,6 +26,7 @@ import model_state
 from tools.faiss_retrieval import k_image_search
 from tools.query_encoding import encode_texts
 from utils import build_thumbnail_url
+import math
 
 """
 Lookup frame_path -> db_idx, build 1 time when module is imported.
@@ -57,53 +58,272 @@ def _enrich(info: dict, dist: float, idx: int) -> dict:
     return info
 
 
-def search_batch(queries: List[str], k: int = 5, 
-                 truncate_dim: Optional[int] = None,
-                 index=None, device=None, 
-                 image_info_dict: Optional[dict] = None,) -> List[List[dict]]:
+def _video_ranking_score(frame_info: list, k_nums: int, higher_is_better: bool = False) -> float:
+    """Calculate a ranking score for a video based on the positions and scores of its frames in the original FAISS results list.
+    """
+    if not frame_info:
+        return float('-inf') if higher_is_better else float('inf')
+    n = len(frame_info)
+    sum_part = sum(
+        ((k_nums - info['position']) / k_nums) * info['score']
+        for info in frame_info
+    )
+    avg_score = sum_part / n
+    log_factor = math.log2(n + 1) if higher_is_better else 1 / math.log2(n + 1)
+    final_score = avg_score * log_factor
+    return final_score if higher_is_better else -final_score
+
+
+def _group_by_video(results: list, higher_is_better: bool = False) -> list:
+    """
+    Results (already enriched, in FAISS order: best match first) are grouped by video_ID,
+    a ranking_score is calculated for each video, and videos are sorted with the best first.
+    Then the results are flattened back into a list of frames (same shape as sort_by_frame_index / sort_by_score), 
+    so the frontend doesn't need to know what displayOption is.
+    Each frame is tagged with 'video_ranking_score' (the score of the video it belongs to).
+    """
+    k_nums = len(results)
+    grouped = {}
+    for position, r in enumerate(results, start=1):
+        grouped.setdefault(r['video_ID'], []).append((position, r))
+
+    video_scores = []
+    for video_ID, items in grouped.items():
+        frame_info = [{'position': pos, 'score': r['distance']} for pos, r in items]
+        score = _video_ranking_score(frame_info, k_nums, higher_is_better)
+        video_scores.append((score, items))
+
+    video_scores.sort(key=lambda v: v[0], reverse=higher_is_better)
+
+    flat = []
+    for score, items in video_scores:
+        for _position, r in items:
+            r = dict(r)
+            r['video_ranking_score'] = score
+            flat.append(r)
+    return flat
+
+
+def search_hnsw_jinaclipv2_batch(
+        queries: List[str], k: int = 5,
+        truncate_dim: Optional[int] = None,
+        index=None, device=None,
+        info_dict: Optional[dict] = None,) -> List[List[dict]]:
     """
     Find top-k keyframes for multiple queries at once — more efficient than calling search() repeatedly
     because it encodes the queries only once.
-
+ 
     :param queries: list of query strings
     :param k: number of results to return for EACH query
     :param truncate_dim: MUST match the truncate_dim used when encoding images
-    :param index: FAISS/HNSW index; defaults to model_state.CLIPV0_HNSW
+    :param index: FAISS/HNSW index; defaults to model_state.HNSW_JINACLIPV2.index
     :param device: defaults to model_state.DEVICE
-    :param image_info_dict: defaults to model_state.CLIPV0_IMAGE_INFO_DICT
-    :return: list[list[dict]] — a list of results for each query, in the same order as the input
+    :param info_dict: defaults to model_state.HNSW_JINACLIPV2.info_dict
+    :return: list[list[dict]] — a list of results for each query, in the same order as the input.
+        Returns [] if `queries` is empty.
     """
-    index = index if index is not None else model_state.CLIPV0_HNSW
+    if not queries:
+        return []
+ 
+    if k < 1:
+        raise ValueError(f"k must be >= 1, got {k}")
+ 
+    index = index if index is not None else model_state.HNSW_JINACLIPV2.index
     device = device if device is not None else model_state.DEVICE
-    image_info_dict = (
-        image_info_dict if image_info_dict is not None else model_state.CLIPV0_IMAGE_INFO_DICT
+    info_dict = (
+        info_dict if info_dict is not None else model_state.HNSW_JINACLIPV2.info_dict
     )
-
-    query_embeddings = encode_texts(queries, truncate_dim=truncate_dim, show_progress=False)
-
+ 
+    query_embeddings = encode_texts(
+        queries, model_name='jina-clip-v2', 
+        truncate_dim=truncate_dim, show_progress=False)
+ 
     distances, indices = k_image_search(
         query_vector=query_embeddings,
-        index_hnsw=index,
+        index=index,
         device=device,
         k_nums=k,
     )
-
+ 
     all_results = []
     for q_dist, q_idx in zip(distances, indices):
         results = []
         for dist, idx in zip(q_dist, q_idx):
             if idx == -1:
                 continue
-            info = image_info_dict[str(idx)]
+            info = info_dict[str(idx)]
             results.append(_enrich(info, dist, idx))
         all_results.append(results)
     return all_results
 
 
-def search(query: str, k: int = 5, truncate_dim: Optional[int] = None,
-           index=None, device=None, image_info_dict: Optional[dict] = None,) -> List[dict]:
-    """Find top-keyframe matches for a single query. Wrapper around search_batch()."""
-    return search_batch(
+def hnsw_jinaclipv2_search(query: str, k: int = 5, truncate_dim: Optional[int] = None,
+           index=None, device=None, info_dict: Optional[dict] = None,) -> List[dict]:
+    """Find top-keyframe matches for a single query. Wrapper around search_hnsw_jinaclipv2_batch()."""
+    return search_hnsw_jinaclipv2_batch(
         [query], k=k, truncate_dim=truncate_dim,
-        index=index, device=device, image_info_dict=image_info_dict,
+        index=index, device=device, info_dict=info_dict,
     )[0]
+
+
+def to_response(paged: dict) -> dict:
+    """Change key names from paginate() to the shape expected by SearchContext.jsx."""
+    return {
+        "results": paged["items"],
+        "totalImages": paged["total"],
+        "totalPages": paged["totalPages"],
+        "page": paged["page"],
+    }
+
+
+def normalize_frame(r: dict) -> dict:
+    """Map video_ID (original name) -> video_id (name needed by GalleryItem.jsx)."""
+    r = dict(r)
+    r.setdefault('video_id', r.get('video_ID'))
+    return r
+
+
+def sort_results(results: list, display_option: str) -> list:
+    """
+    Apply displayOption to the list of results (already enriched via search_hnsw_jinaclipv2_batch(), 
+    in original FAISS order — best match first by increasing distance).
+    All branches return a flat list[dict] with the same shape 
+    (each element is a frame with video_ID/frame_ID/frame_idx/frame_path/timestamp/time_in_seconds/distance/db_idx/thumbnail)
+    — group_by_videoid only changes the ORDER, not the shape, so the frontend (GalleryItem.jsx) doesn't need to change anything.
+        - "sort_by_score"       : sort by distance ascending
+        - "sort_by_frame_index" : keep the original FAISS order (do not re-sort by frame_idx — this is the correct behavior of the original notebook)
+        - "group_by_videoid"    : group by video, best video ranking first, then flatten (see _group_by_video)
+    """
+    if display_option == "sort_by_score":
+        return sorted(results, key=lambda r: r["distance"])
+    if display_option == "group_by_videoid":
+        return _group_by_video(results, higher_is_better=False)
+    # "sort_by_frame_index" and all other values: keep the original FAISS order
+    return results
+
+
+def cluster_by_video(start_results: list, end_results: list, video_index: dict, min_occurrences: int = 2) -> list:
+    """
+    Group start_results + end_results by video_ID:
+      1. video_ID only appears < min_occurrences times in the entire pool (start+end)
+         → discard, not enough to identify a real segment.
+      2. Remaining video_IDs → use MIN/MAX frame_idx as start-end boundaries.
+      3. Retrieve ALL real frames within the [min, max] range from video_index (already normalized
+         fields: video_id, frame_idx, timestamp_sec, db_idx, thumbnail).
+      4. Score cụm = best_start_distance + best_end_distance (nếu có đủ cả 2 channel),
+         dùng để sort cụm nào khớp truy vấn tốt nhất lên đầu.
+    """
+    pool = (
+        [dict(r, _channel="start") for r in start_results]
+        + [dict(r, _channel="end") for r in end_results]
+    )
+
+    by_video = {}
+    for r in pool:
+        by_video.setdefault(r["video_ID"], []).append(r)
+
+    clusters = []
+    for video_ID, items in by_video.items():
+        if len(items) < min_occurrences:
+            continue  # match single 1 time — not enough to identify a segment
+
+        start_item = min(items, key=lambda r: r["frame_idx"])
+        end_item = max(items, key=lambda r: r["frame_idx"])
+        if start_item["frame_idx"] == end_item["frame_idx"]:
+            continue  # min == max, not enough to create a real segment
+
+        video_frames = video_index.get(video_ID, [])
+        frames_in_range = sorted(
+            (f for f in video_frames
+             if start_item["frame_idx"] <= f["frame_idx"] <= end_item["frame_idx"]),
+            key=lambda f: f["frame_idx"],
+        )
+        if not frames_in_range:
+            continue
+
+        start_scores = [r["distance"] for r in items if r["_channel"] == "start"]
+        end_scores = [r["distance"] for r in items if r["_channel"] == "end"]
+        score = (min(start_scores) if start_scores else 0) + (min(end_scores) if end_scores else 0)
+
+        clusters.append({
+            "video_id": video_ID,
+            "score": score,
+            "frame_count": len(frames_in_range),
+            "frames": frames_in_range,   # already have thumbnail/db_idx/frame_idx/timestamp_sec
+        })
+
+    clusters.sort(key=lambda c: c["score"])
+    return clusters
+
+def search_flatip_dangvantuan_batch(
+        queries: List[str], k: int = 5,
+        fetch_multiplier: int = 5,
+        index=None, device=None,
+        info_dict: Optional[dict] = None,) -> List[List[dict]]:
+    """
+    Find top-k deduplicated events for multiple queries at once — more
+    efficient than calling search() repeatedly because it encodes the
+    queries only once.
+
+    :param queries: list of query strings
+    :param k: number of deduplicated results to return for EACH query
+    :param fetch_multiplier: how many raw candidates to fetch per query
+        before dedup (n_fetch = k * fetch_multiplier), since deduping by
+        (video_id, event_id) can collapse multiple raw hits into one entry
+    :param index: FAISS index; defaults to model_state.FLATIP_DANGVANTUAN.index
+    :param device: defaults to model_state.DEVICE
+    :param info_dict: defaults to model_state.FLATIP_DANGVANTUAN.info_dict
+    :return: list[list[dict]] — deduplicated, score-sorted results for each
+        query, in the same order as the input queries. Returns [] if `queries` is empty.
+    """
+    if not queries:
+        return []
+
+    if k < 1:
+        raise ValueError(f"k must be >= 1, got {k}")
+
+    if fetch_multiplier < 1:
+        raise ValueError(f"fetch_multiplier must be >= 1, got {fetch_multiplier}")
+
+    index = index if index is not None else model_state.FLATIP_DANGVANTUAN.index
+    device = device if device is not None else model_state.DEVICE
+    info_dict = (
+        info_dict if info_dict is not None else model_state.FLATIP_DANGVANTUAN.info_dict
+    )
+
+    query_embeddings = encode_texts(queries, model_name='dangvantuan', show_progress=False)
+
+    n_fetch = k * fetch_multiplier
+
+    distances, indices = k_image_search(
+        query_vector=query_embeddings,
+        index=index,
+        device=device,
+        k_nums=n_fetch,
+    )
+
+    all_results = []
+    for q_dist, q_idx in zip(distances, indices):
+        # dedupe by (video_id, event_id), keep highest score
+        seen = {}
+        for distance, idx in zip(q_dist, q_idx):
+            if idx == -1:
+                continue
+            info = info_dict[str(idx)]
+            key = (info["video_id"], info["event_id"])
+            if key not in seen or distance > seen[key]["score"]:
+                seen[key] = {
+                    "video_id": info["video_id"],
+                    "group": info["group"],
+                    "event_id": info["event_id"],
+                    "start": info["start"],
+                    "end": info["end"],
+                    "text": info["text"],
+                    "frames": [kf["frame_path"] for kf in info["keyframes"]],
+                    "score": float(distance),
+                }
+
+        query_results = sorted(seen.values(), key=lambda x: -x["score"])[:k]
+        all_results.append(query_results)
+
+    return all_results

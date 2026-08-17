@@ -43,10 +43,8 @@ app.add_middleware(
 # ---------------------------------------------------------------------------
 # Routers
 # ---------------------------------------------------------------------------
-# Dataset (state.ALL_FRAMES, state.VIDEO_INDEX, state.L_OPTIONS,
-# state.FEEDBACK_STORE) and model/search index (model_state.DEVICE,
-# model_state.MODEL, model_state.ENCODED_FRAMES, model_state.CLIPV0_HNSW,
-# model_state.CLIPV0_IMAGE_INFO_DICT) already been loaded & cached 1 time when imported
+# Dataset (state.) and model/search index (model_state.) 
+# already been loaded & cached 1 time when imported
 # state / model_state above run - each router get their dependencies via deps.py,
 # DO NOT use app.state anymore.
 

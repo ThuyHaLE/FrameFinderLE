@@ -2,49 +2,71 @@
 
 import numpy as np
 
-def k_image_search(query_vector, 
-                   index_hnsw, 
-                   device, k_nums=5):
+def k_image_search(query_vector, index, device, k_nums=5):
    """
-   Retrieves the k-nearest images to the query vector using the FAISS library with an HNSW (Hierarchical Navigable 
-   Small World) index. This function is typically used for fast approximate nearest neighbor search in high-dimensional
-   spaces, such as image embeddings.
+   Retrieves the k-nearest neighbors to a query vector using a FAISS index.
+   This function is a generic wrapper around FAISS's k-NN search and works with
+   any FAISS index type (e.g. HNSW, FlatIP, FlatL2, IVF...) and any embedding
+   model (image or text), as long as the query vector's dimension matches the
+   index's dimension.
 
    Args:
-      query_vector (torch.Tensor): The query vector (embedding) to search for. This vector represents the image or
-                                    feature to find the nearest neighbors for in the index.
-      index_hnsw (faiss.Index): The FAISS index for retrieval. This index should be built using the HNSW algorithm 
-                                 to allow efficient k-nearest neighbor (k-NN) search.
-      device (str): The device where the query vector is located. It should be either "cpu" or "cuda", and the function
-                     will handle the data accordingly to ensure compatibility with the FAISS index.
-      k_nums (int): The number of nearest neighbors to retrieve. Default is 5, but this can be adjusted depending 
-                     on how many neighbors you need for your specific use case.
+      query_vector (torch.Tensor or np.ndarray): The query vector (embedding) to search for.
+            Can be a 1D vector (single query) or a 2D array/tensor (batch of queries). 
+            Must be produced by the same encoder/model (and preprocessing) that was used to build the target index — 
+            e.g. an image embedding must be searched against an image index, a text embedding against a text index; 
+            mixing encoders will yield meaningless results even if dimensions happen to match.
+
+            Note: If the index uses the Inner Product metric (e.g. FlatIP) to compute cosine similarity, 
+            query_vector must also be normalized before being passed in, the same way it was normalized when the index was built.
+
+      index (faiss.Index): The FAISS index to search against. Can be any FAISS index type
+            (HNSW, FlatIP, FlatL2, IVF, etc.) — this function does not depend on any specific index implementation.
+
+      device (str): The device where the query vector currently resides. Should be either "cpu" or "cuda". 
+            The function converts the vector to a CPU-compatible NumPy array as needed, 
+            since FAISS does not operate on GPU tensors directly.
+
+      k_nums (int): The number of nearest neighbors to retrieve. Default is 5, but this can be adjusted 
+            depending on how many neighbors you need for your specific use case.
 
    Returns:
       tuple: A tuple containing:
-               - valid_distances (list): The distances from the query vector to the nearest neighbors in the index. 
-               - valid_indices (list): The indices of the nearest neighbors, which can be used to retrieve the actual
-                                       images or items corresponding to those embeddings in the original dataset.
+               - distances (np.ndarray): The distances (or similarity scores, depending on
+                                          the index's metric) from the query vector to its
+                                          nearest neighbors in the index.
+               - indices (np.ndarray): The indices of the nearest neighbors, which can be
+                                        used to retrieve the actual items (images, text
+                                        chunks, etc.) corresponding to those embeddings in
+                                        the original dataset.
 
    Process:
-      1. If the device is CUDA, the query vector is transferred from the GPU (CUDA) to the CPU and converted to 
-         a NumPy array to ensure compatibility with the FAISS library. FAISS does not directly work with PyTorch 
-         tensors on GPU, so this step is necessary.
-      2. If the device is CPU, the query vector is used directly without conversion.
-      3. The FAISS `search` function is then called on the HNSW index, which returns the distances and indices of 
-         the k-nearest neighbors for the given query vector.
-      4. The function returns the HNSW distances and indices as a tuple, which can be used to fetch the 
-         corresponding images or items.
-      """
+      1. If the device is CUDA, the query vector is transferred from GPU to CPU and converted
+         to a NumPy array, since FAISS does not operate directly on GPU tensors. If it's a CPU
+         torch tensor, it is likewise converted to a NumPy array. Otherwise, it is coerced into
+         a NumPy float32 array directly.
+      2. The vector is reshaped to 2D (n_queries, dim) if it was passed in as a 1D vector,
+         since FAISS expects a batch dimension even for a single query.
+      3. The FAISS `search` method is called on the given index, returning the distances
+         and indices of the k-nearest neighbors for the query vector(s).
+      4. The function returns the distances and indices as a tuple, which can be used to
+         fetch the corresponding items from the original dataset.
+   """
 
    # Step 1: Convert query vector to NumPy array if running on CUDA, as FAISS operates on CPU-compatible data
    if device == "cuda":
       vector_data = query_vector.cpu().numpy().astype(np.float32)
+   elif hasattr(query_vector, "numpy"):  # torch tensor on cpu
+      vector_data = query_vector.numpy().astype(np.float32)
    else:
-      vector_data = query_vector
+      vector_data = np.asarray(query_vector, dtype=np.float32)
+
+   # Make sure vector must be 2D shape (n_queries, dim)
+   if vector_data.ndim == 1:
+      vector_data = vector_data.reshape(1, -1)
 
    # Step 2: Perform k-nearest neighbor search on the HNSW index using FAISS
-   distances_hnsw, indices_hnsw = index_hnsw.search(vector_data, k_nums)
+   distances, indices = index.search(vector_data, k_nums)
 
    # Step 3: Return distances and indices as a tuple
-   return distances_hnsw, indices_hnsw
+   return distances, indices
