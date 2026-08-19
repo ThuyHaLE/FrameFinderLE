@@ -309,7 +309,7 @@ def search_flatip_dangvantuan_batch(
         for distance, idx in zip(q_dist, q_idx):
             if idx == -1:
                 continue
-            info = info_dict[str(idx)]
+            info = info_dict[idx]
             key = (info["video_id"], info["event_id"])
             if key not in seen or distance > seen[key]["score"]:
                 seen[key] = {
