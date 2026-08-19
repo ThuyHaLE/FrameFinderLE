@@ -23,18 +23,32 @@ const EXACT_VIDEO_ID_RE = /^L\d+_V\d+$/;
 
 // ---------------------------------------------------------------------------
 // EventIdInput — integer input with ▲▼ shift buttons, mirrors TimestampInput's
-// mechanism but for event_id instead of hh:mm:ss. Simpler than TimestampInput
-// because the fallback here is a fixed constant (0 or -1), not something that
-// has to be derived from currently loaded data.
+// mechanism but for event_id instead of hh:mm:ss.
+//
+// Clamping behaviour (min/max are optional; omit either to leave that side
+// unbounded — used while the real max_event_id for the selected video hasn't
+// loaded yet):
+//   - Typing:  free-form, NOT clamped on every keystroke (so typing multi-
+//              digit numbers isn't fought character-by-character).
+//   - Blur:    value is clamped into [min, max] once the user leaves the field.
+//   - ▲ / ▼:   always clamped — shifting can never produce an out-of-range
+//              value, it just stops at the boundary.
 // ---------------------------------------------------------------------------
 
-function EventIdInput({ id, label, value, onChange, fallback, placeholder, disabled = false }) {
+function EventIdInput({ id, label, value, onChange, fallback, placeholder, disabled = false, min, max }) {
+  function clamp(n) {
+    let v = n;
+    if (min !== undefined && v < min) v = min;
+    if (max !== undefined && v > max) v = max;
+    return v;
+  }
+
   function shift(delta) {
     if (disabled) return;
     const trimmed = value.trim();
     const base = trimmed === "" ? fallback : parseInt(trimmed, 10);
     const startFrom = isNaN(base) ? fallback : base;
-    onChange(String(startFrom + delta));
+    onChange(String(clamp(startFrom + delta)));
   }
 
   function handleChange(e) {
@@ -43,6 +57,15 @@ function EventIdInput({ id, label, value, onChange, fallback, placeholder, disab
     // allow empty (-> uses fallback), optional leading '-', digits only
     if (val === "" || /^-?\d*$/.test(val)) {
       onChange(val);
+    }
+  }
+
+  function handleBlur() {
+    if (disabled || value.trim() === "") return;
+    const n = parseInt(value.trim(), 10);
+    if (!isNaN(n)) {
+      const clamped = clamp(n);
+      if (clamped !== n) onChange(String(clamped));
     }
   }
 
@@ -57,6 +80,7 @@ function EventIdInput({ id, label, value, onChange, fallback, placeholder, disab
           value={value}
           placeholder={placeholder}
           onChange={handleChange}
+          onBlur={handleBlur}
           autoComplete="off"
           spellCheck={false}
           disabled={disabled}
@@ -149,7 +173,7 @@ function VideoIDSelector({ videoId, onChange, lOptions }) {
       </div>
     </div>
   );
-} 
+}
 
 // ---------------------------------------------------------------------------
 // EventPage
@@ -173,6 +197,21 @@ export default function EventPage() {
   const [lOptions, setLOptions] = useState(FALLBACK_L_OPTIONS);
 
   const isExactVideo = EXACT_VIDEO_ID_RE.test(videoId.trim());
+
+  // Real max event_id for the currently selected video, sourced from the
+  // backend response (`maxEventId`), NOT derived from the loaded `events`
+  // page — events is paginated (perPage=20) so its local max is unreliable.
+  // Starts at 0 and is only meaningful once boundsReady is true.
+  const [eventIdEndFallback, setEventIdEndFallback] = useState(0);
+
+  // True once we've actually fetched maxEventId for the video currently
+  // selected. Used to avoid clamping against a stale/zero boundary while
+  // the request for a newly-selected video is still in flight.
+  const boundsReady = isExactVideo && eventIdEndFallback > 0;
+
+  const startMax = boundsReady ? Math.max(0, eventIdEndFallback - 1) : undefined;
+  const endMin = boundsReady ? 1 : undefined;
+  const endMax = boundsReady ? eventIdEndFallback : undefined;
 
   useEffect(() => {
     if (!isExactVideo && (eventIdStart || eventIdEnd)) {
@@ -210,6 +249,21 @@ export default function EventPage() {
     // filter only makes sense against exactly one video, not an "L13" prefix.
     if (hasEventIdFilter && !EXACT_VIDEO_ID_RE.test(videoId.trim()))
       return "Vui lòng chọn đúng 1 Video ID (VD: L21_V001) khi lọc theo Event ID.";
+
+    // Range check against the real max_event_id, only once it's known.
+    if (boundsReady) {
+      if (eventIdStart.trim()) {
+        const s = parseInt(eventIdStart, 10);
+        if (!isNaN(s) && (s < 0 || s > eventIdEndFallback))
+          return `Event ID bắt đầu phải trong khoảng 0 – ${eventIdEndFallback}.`;
+      }
+      if (eventIdEnd.trim()) {
+        const e = parseInt(eventIdEnd, 10);
+        if (!isNaN(e) && e !== -1 && (e < 0 || e > eventIdEndFallback))
+          return `Event ID kết thúc phải trong khoảng 0 – ${eventIdEndFallback} (hoặc -1 cho event cuối).`;
+      }
+    }
+
     if (eventIdStart.trim() && eventIdEnd.trim()) {
       const s = parseInt(eventIdStart, 10);
       const e = parseInt(eventIdEnd, 10);
@@ -244,12 +298,23 @@ export default function EventPage() {
       // Trust backend's returned page, same reasoning as DataPage:
       // avoids UI showing page > totalPages after a filter shrinks the result set.
       setPage(res.page ?? targetPage);
+      // Real max event_id for this video, computed server-side from the FULL
+      // pool (not the paginated page) — drives the clamp bounds and hint text.
+      setEventIdEndFallback(res.maxEventId ?? 0);
     } finally {
       setLoading(false);
     }
   }, [videoId, eventIdStart, eventIdEnd]);
 
+  // Load once on mount.
   useEffect(() => { load(1); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Reload whenever we land on a specific exact video, so maxEventId (and
+  // the clamp bounds / hint text) reflect the video actually selected instead
+  // of a stale value from whatever was loaded before.
+  useEffect(() => {
+    if (isExactVideo) load(1);
+  }, [isExactVideo, videoId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // -------------------------------------------------------------------------
   // Handlers
@@ -269,6 +334,7 @@ export default function EventPage() {
     setEventIdEnd("");
     setFilterError(null);
     setSelectorResetKey((k) => k + 1);
+    setEventIdEndFallback(0);
     load(1, { videoId: "", eventIdStart: "", eventIdEnd: "" });
   }
 
@@ -294,21 +360,25 @@ export default function EventPage() {
             fallback={0}
             placeholder="0 (event đầu tiên)"
             disabled={!isExactVideo}
+            min={0}
+            max={startMax}
           />
           <EventIdInput
             id="event_id_end"
             label="Kết thúc tại"
             value={eventIdEnd}
             onChange={setEventIdEnd}
-            fallback={-1}
-            placeholder="-1 (event cuối cùng)"
+            fallback={eventIdEndFallback}
+            placeholder={`${eventIdEndFallback} (event cuối cùng)`}
             disabled={!isExactVideo}
+            min={endMin}
+            max={endMax}
           />
         </div>
 
         <p className="ss-form-hint">
           {isExactVideo
-            ? "Để trống → 0 (đầu) và -1 (cuối)."
+            ? `Để trống → 0 (đầu) và ${eventIdEndFallback} (cuối).`
             : "Chọn đúng 1 Video ID (VD: L21_V001) để lọc theo Event ID."}
         </p>
 

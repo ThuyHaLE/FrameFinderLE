@@ -12,5 +12,8 @@
   },
   "jinaclipv2_encoded_frames": {
     "encoded_frames_path": "static/databases/jinaclipv2_encoded_frames/encoded_frames.pt"
+  },
+  "all_event_transcripts": {
+    "event_transcripts_path": "static/databases/combined_event_transcripts/combined_event_transcripts.json"
   }
 }

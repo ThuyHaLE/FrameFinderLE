@@ -85,3 +85,17 @@ def load_jinaclipv2_encoded_frames(device, database_name='jinaclipv2_encoded_fra
     encoded_frames = torch.load(encoded_frames_path, map_location=device, weights_only=True)
     logger.info(f"Load encoded frames {encoded_frames_path}: DONE!")
     return encoded_frames
+
+def load_event_transcripts(database_name='all_event_transcripts', config_path=CONFIG_PATH):
+    db_configs = load_database_configs(config_path)
+
+    if database_name not in db_configs:
+        raise ValueError(
+            f"Unsupported database name '{database_name}'. "
+            f"Choose one of: {list(db_configs.keys())}"
+        )
+
+    event_transcripts_path = db_configs[database_name]['event_transcripts_path']
+    event_transcripts = load_annotation(event_transcripts_path)
+    logger.info(f"Load event transcripts {event_transcripts_path}: DONE!")
+    return event_transcripts

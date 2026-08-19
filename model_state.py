@@ -21,6 +21,7 @@ from models.model_init import load_model
 from database.db_init import (
     load_jinaclipv2_encoded_frames,
     faiss_database_processing,
+    load_event_transcripts
 )
 
 logging.basicConfig(level=logging.INFO)
@@ -47,6 +48,9 @@ if _DANGVANTUAN_DEVICE != DEVICE:
 
 logger.info("Loading jinaclipv2 encoded frames...")
 JINACLIPV2_ENCODED_FRAMES = load_jinaclipv2_encoded_frames(DEVICE, database_name='jinaclipv2_encoded_frames')
+
+logger.info("Loading all event transcripts...")
+EVENT_TRANSCRIPTS = load_event_transcripts(database_name='all_event_transcripts')
 
 logger.info("Loading hnsw_jinaclipv2 index...")
 _hnsw_index, _hnsw_info_dict = faiss_database_processing("hnsw_jinaclipv2")
@@ -83,18 +87,18 @@ FRAME_PATH_TO_ROW: Dict[str, int] = {
 }
 
 # ---------------------------------------------------------------------------
-# ALL_EVENTS / EVENT_INDEX — derived from FLATIP_DANGVANTUAN.info_dict (list of events)
+# ALL_EVENTS / EVENT_INDEX — derived from EVENT_TRANSCRIPTS (list of events)
 # ---------------------------------------------------------------------------
 
-logger.info("Building ALL_EVENTS / EVENT_INDEX from flatip_dangvantuan...")
+logger.info("Building ALL_EVENTS / EVENT_INDEX from all event transcripts...")
 
-if not isinstance(FLATIP_DANGVANTUAN.info_dict, list):
+if not isinstance(EVENT_TRANSCRIPTS, list):
     raise TypeError(
-        f"Expected FLATIP_DANGVANTUAN.info_dict to be a list of events, "
-        f"got {type(FLATIP_DANGVANTUAN.info_dict)}"
+        f"Expected EVENT_TRANSCRIPTS to be a list of events, "
+        f"got {type(EVENT_TRANSCRIPTS)}"
     )
 
-_raw_events = FLATIP_DANGVANTUAN.info_dict
+_raw_events = EVENT_TRANSCRIPTS
 
 ALL_EVENTS: list = []
 _skipped_no_video_id = 0

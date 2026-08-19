@@ -76,24 +76,31 @@ def get_events(
             if vid_key.startswith(prefix):
                 items.extend(events)
 
-    # 2. Filter by event_id range -- only meaningful (and only applied) when
+    # 2. Compute max_event_id from the FULL pool for this video, BEFORE the
+    #    range filter is applied and independent of pagination — this is what
+    #    the frontend uses to show the real "last event" value in the UI
+    #    (placeholder / ▲▼ shift fallback), so it must not be affected by
+    #    event_id_start/event_id_end or by perPage.
+    max_event_id = max((e["event_id"] for e in items), default=None) if is_exact_video else None
+
+    # 3. Filter by event_id range -- only meaningful (and only applied) when
     #    exactly one video is selected, since event_id restarts per video.
     if is_exact_video and (event_id_start or event_id_end) and items:
-        max_event_id = max(e["event_id"] for e in items)
         start_id = _parse_event_id(event_id_start, default=0)
         raw_end = _parse_event_id(event_id_end, default=-1)
         end_id = max_event_id if raw_end < 0 else raw_end
         items = [e for e in items if start_id <= e["event_id"] <= end_id]
 
-    # 3. Sort by video_id, then event_id (chronological within a video,
+    # 4. Sort by video_id, then event_id (chronological within a video,
     #    since event_id is assigned in transcript-segment order)
     items = sorted(items, key=lambda e: (e["video_id"], e["event_id"]))
 
-    # 4. Paginate
+    # 5. Paginate
     paged = paginate(items, page, perPage)
     return {
         "events": paged["items"],
         "total": paged["total"],
         "totalPages": paged["totalPages"],
         "page": paged["page"],
+        "maxEventId": max_event_id,  # null when video_ID isn't an exact "L..._V..." id
     }

@@ -241,10 +241,11 @@ export async function fetchEvents({ page = 1, perPage = 20, videoId = "", eventI
   });
  
   const real = await tryReal(() => request(`/api/events?${params.toString()}`));
-  if (real) return real;
+  if (real) return real; // backend đã trả maxEventId
  
   await mockDelay();
   const vid = videoId || "L01_V001";
+  const isExactVideo = /^L\d+_V\d+$/.test(videoId.trim());
   const mockEvents = Array.from({ length: 6 }, (_, i) => {
     const start = i * 30;
     const end = start + 25 + i;
@@ -259,7 +260,12 @@ export async function fetchEvents({ page = 1, perPage = 20, videoId = "", eventI
     };
   });
   const { items, total, totalPages } = paginate(mockEvents, page, perPage);
-  return { events: items, total, totalPages };
+  return {
+    events: items,
+    total,
+    totalPages,
+    maxEventId: isExactVideo ? mockEvents.length - 1 : null, // = 5, khớp mock pool 6 events (0..5)
+  };
 }
 
 /**
