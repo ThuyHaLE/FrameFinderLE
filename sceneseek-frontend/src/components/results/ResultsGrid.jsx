@@ -2,9 +2,10 @@
 
 import { useSearchContext } from "../../context/SearchContext";
 import GalleryItem from "./GalleryItem";
-import ClusterGalleryItem from "./ClusterGalleryItem";
+import VideoGroupItem from "./VideoGroupItem";
 import Pagination from "./Pagination";
 import SkeletonGrid from "./SkeletonGrid";
+import { groupClustersByVideo } from "../../utils/clusterGrouping";
 
 export default function ResultsGrid() {
   const {
@@ -75,12 +76,23 @@ export default function ResultsGrid() {
   const isClusterResults = Boolean(results[0]?.frames && results[0]?.video_id);
 
   if (isClusterResults) {
+    // Group the flat cluster/event list (from event-boundary or event-mention)
+    // by video_id so a video with multiple events (common for event-mention,
+    // since it dedupes by (video_id, event_id) rather than 1 cluster per video)
+    // renders as one header with all its events underneath, instead of
+    // duplicate video headers / duplicate React keys.
+    const groups = groupClustersByVideo(results);
     return (
       <div className="ss-results">
         <p className="ss-results-total">Tổng số cụm cảnh: {totalImages}</p>
         <div className="ss-cluster-list">
-          {results.map((cluster) => (
-            <ClusterGalleryItem key={cluster.video_id} cluster={cluster} onSearchSimilar={openSimilar} />
+          {groups.map((g) => (
+            <VideoGroupItem
+              key={g.video_id}
+              videoId={g.video_id}
+              events={g.events}
+              onSearchSimilar={openSimilar}
+            />
           ))}
         </div>
         <Pagination page={page} totalPages={totalPages} onChange={changePage} />

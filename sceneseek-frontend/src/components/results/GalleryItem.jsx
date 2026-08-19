@@ -1,4 +1,4 @@
-// components/results/GalleryItem.jsx
+// sceneseek-frontend/src/components/results/GalleryItem.jsx
 
 import FeedbackButtons from "./FeedbackButtons";
 import { useModal } from "../../context/ModalContext";

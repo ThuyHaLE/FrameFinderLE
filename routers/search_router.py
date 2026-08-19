@@ -5,8 +5,7 @@ Search routes (Type 1, 2, 3)
 
 POST /api/search/frame           — Type 1: A specific frame (text-image)
 POST /api/search/event-boundary  — Type 2: Start/End of an event
-POST /api/search/event-mention   — Type 3: Not implemented yet (missing model +
-                                    transcript index, see TODO below)
+POST /api/search/event-mention   — Type 3: Event mentioned in transcript (text-text)
 """
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -14,12 +13,13 @@ from common import NOT_IMPLEMENTED
 from deps import (
     get_device, get_jinaclipv2_model, get_jinaclipv2_encoded_frames,
     get_hnsw_jinaclipv2_index, get_hnsw_jinaclipv2_info_dict,
+    get_flatip_dangvantuan_index, get_flatip_dangvantuan_info_dict,
     get_video_index, get_frame_by_id, get_frame_by_path, get_frame_path_to_row
     )
 from schemas import SearchRequest
 from tools.search_utils import (
-    search_hnsw_jinaclipv2_batch, normalize_frame, 
-    sort_results, to_response, cluster_by_video
+    search_hnsw_jinaclipv2_batch, search_flatip_dangvantuan_batch,
+    normalize_frame, sort_results, to_response, cluster_by_video
     )
 from tools.search_similar import search_similar
 from utils import paginate
@@ -129,12 +129,55 @@ def get_similar_frames(
     }
 
 @router.post("/event-mention")
-def search_event_mention(req: SearchRequest):
+def search_event_mention(
+    req: SearchRequest,
+    device=Depends(get_device),
+    index=Depends(get_flatip_dangvantuan_index),
+    info_dict: dict = Depends(get_flatip_dangvantuan_info_dict),
+    frame_by_path: dict = Depends(get_frame_by_path),
+):
     """
-    Type 3 — Event mention. Search for events mentioned in the transcript.
-    NOT IMPLEMENTED: Missing (1) dedicated Vietnamese text-text embedding model
-    (current model_state only loads 1 text-image model), and (2) transcript
-    index (no place to build/load yet). Need to add these infrastructure components
-    before implementing the actual logic here.
+    Type 3 — Event mention. Search for events mentioned in the transcript
+    using the dangvantuan text-text embedding model.
+ 
+    NOTE on `req.keywords`: currently NOT merged into the query for this
+    route (undecided whether keyword-boosting a text-text transcript search
+    makes sense the same way it does for Type 1's text-image search). Revisit
+    if Type 3 search quality needs tuning.
     """
-    raise NOT_IMPLEMENTED
+    events = search_flatip_dangvantuan_batch(
+        [req.query or ""], k=req.k,
+        index=index, device=device, info_dict=info_dict,
+    )[0]
+ 
+    # Join frame_path (string) -> full frame dict (db_idx, thumbnail, timestamp_sec...)
+    # so GalleryItem.jsx / the cluster UI gets the same shape it already expects
+    # from Type 2 clusters (frame_by_path already used the same way in /similar above).
+    clusters = []
+    for ev in events:
+        frames = []
+        for frame_path in ev["frames"]:
+            frame = frame_by_path.get(frame_path)
+            if frame is None:
+                continue  # skip instead of crash, same defensive pattern as /similar
+            frames.append(frame)
+        if not frames:
+            continue  # event has no resolvable frames -> not usable, drop it
+ 
+        clusters.append({
+            "video_id": ev["video_id"],
+            "score": ev["score"],
+            "frame_count": len(frames),
+            "frames": frames,
+            # extra context specific to Type 3 (transcript match) — frontend
+            # displays these as the event caption above the frame strip
+            "text": ev["text"],
+            "start": ev["start"],
+            "end": ev["end"],
+        })
+ 
+    # NOTE: search_flatip_dangvantuan_batch already sorts DESC by score
+    # (IP/cosine similarity, higher = better) — do NOT re-sort here like
+    # cluster_by_video does for Type 2 (that one uses L2 distance, lower =
+    # better). Re-sorting ascending here would silently reverse the ranking.
+    return to_response(paginate(clusters, req.page, req.imagesPerPage))

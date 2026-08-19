@@ -562,3 +562,42 @@ body {
   from { transform: translateX(-100%); }
   to   { transform: translateX(100%); }
 }
+
+/* ---------- Cluster results (Type 3 — event mention) ---------- */
+
+.ss-video-group {
+  margin-bottom: 1.5rem;
+}
+
+.ss-video-group__header {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
+.ss-video-group__count {
+  font-weight: 400;
+  color: var(--ss-text-secondary, #666);
+  font-size: 0.85em;
+}
+
+.ss-video-group__event {
+  margin-bottom: 12px;
+}
+
+.ss-cluster-item__text {
+  margin: 0 0 6px;
+  font-size: 0.9em;
+  color: var(--ss-text-secondary, #555);
+  line-height: 1.5;
+  white-space: normal; /* show full text, wraps naturally */
+  overflow: visible;
+}
+
+.ss-cluster-item__meta {
+  font-weight: 600;
+  color: var(--ss-text-primary, #333);
+  white-space: nowrap; /* keep "start – end" together */
+}
