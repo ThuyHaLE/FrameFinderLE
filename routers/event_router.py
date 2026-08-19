@@ -25,25 +25,36 @@ from typing import Dict, List
 
 from fastapi import APIRouter, Depends
 
-from deps import get_all_events, get_event_index
+from deps import get_all_events, get_event_index, get_frame_by_path
 from utils import paginate
 
 router = APIRouter(prefix="/api", tags=["events"])
 
 
-def _serialize_event(e: dict) -> dict:
-    """Map raw FLATIP event shape -> response shape expected by frontend (fetchEvents mock)."""
-    keyframes = e.get("keyframes", [])
+def _serialize_event(e: dict, frame_by_path: dict) -> dict:
+    """Map raw FLATIP event shape -> response shape expected by frontend.
+
+    keyframes trong FLATIP chỉ chứa frame_path (+ vài field thô) — phải join
+    qua frame_by_path để lấy full frame dict (db_idx, thumbnail, video_id,
+    frame_idx...) thì GalleryItem.jsx mới render được, giống cách
+    /event-mention trong search_router.py đang làm.
+    """
+    frames = []
+    for kf in e.get("keyframes", []):
+        frame = frame_by_path.get(kf["frame_path"])
+        if frame is None:
+            continue  
+        frames.append(frame)
+
     return {
         "video_id": e["video_id"],
         "event_id": e["event_id"],
         "start": e["start"],
         "end": e["end"],
         "text": e.get("text", ""),
-        "frames": keyframes,
-        "frame_count": len(keyframes),
+        "frames": frames,
+        "frame_count": len(frames),
     }
-
 
 @router.get("/events")
 def get_events(
@@ -53,6 +64,7 @@ def get_events(
     event_id: str = "",
     all_events: List[dict] = Depends(get_all_events),
     event_index: Dict[str, List[dict]] = Depends(get_event_index),
+    frame_by_path: dict = Depends(get_frame_by_path),
 ):
     """Browse events by video_ID, optionally a single event_id within an exact video."""
 
@@ -78,7 +90,7 @@ def get_events(
     items = sorted(items, key=lambda e: (e["video_id"], e["start"]))
 
     # 4. Serialize -> map raw event shape to response shape
-    serialized = [_serialize_event(e) for e in items]
+    serialized = [_serialize_event(e, frame_by_path) for e in items]
 
     # 5. Paginate
     paged = paginate(serialized, page, perPage)

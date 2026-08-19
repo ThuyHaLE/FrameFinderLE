@@ -53,12 +53,14 @@ from routers.search_router import router as search_router
 from routers.refine_router import router as refine_router
 from routers.feedback_router import router as feedback_router
 from routers.query_router import router as query_router
+from routers.event_router import router as event_router
 
 app.include_router(data_router)
 app.include_router(search_router)
 app.include_router(refine_router)
 app.include_router(feedback_router)
 app.include_router(query_router)
+app.include_router(event_router)
 
 # ---------------------------------------------------------------------------
 # Static files — keyframe images

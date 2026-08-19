@@ -4,6 +4,7 @@ export default function Navbar({ activePage, onNavigate }) {
   const links = [
     { key: "home", label: "Home" },
     { key: "data", label: "Data" },
+    { key: "event", label: "Event" },
   ];
 
   return (
