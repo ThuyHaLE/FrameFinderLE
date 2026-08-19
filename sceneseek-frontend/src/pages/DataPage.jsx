@@ -5,6 +5,7 @@ import { fetchKeyframes } from "../api/client";
 import GalleryItem from "../components/results/GalleryItem";
 import Pagination from "../components/results/Pagination";
 import SkeletonGrid from "../components/results/SkeletonGrid";
+import VideoIDSelector from "../components/common/VideoIDSelector";
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -79,93 +80,6 @@ function TimestampInput({ id, label, value, onChange, placeholder = "hh:mm:ss", 
         />
         <button type="button" className="ss-ts-btn" onClick={() => shift(1)}  title="+1s" disabled={disabled}>▲</button>
         <button type="button" className="ss-ts-btn" onClick={() => shift(-1)} title="-1s" disabled={disabled}>▼</button>
-      </div>
-    </div>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// VideoIDSelector — L select + V text input → "L13_V001"
-// ---------------------------------------------------------------------------
-
-function VideoIDSelector({ videoId, onChange, lOptions }) {
-  // Parse existing videoId back into L / V parts (e.g. "L13_V001" → "13", "001")
-  const match = videoId.match(/^L(\d+)_V(\d+)$/);
-  const [lPart, setLPart] = useState(match ? match[1] : "");
-  const [vPart, setVPart] = useState(match ? match[2] : "");
-
-  // Sync up to parent whenever either part changes
-  useEffect(() => {
-    if (lPart && vPart) {
-      onChange(`L${lPart}_V${vPart.padStart(3, "0")}`); // exact: "L13_V001"
-    } else if (lPart) {
-      onChange(`L${lPart}`); // prefix: "L13" → backend get all V for this L
-    } else {
-      onChange(""); // no filter
-    }
-  }, [lPart, vPart]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  function handleVChange(e) {
-    const val = e.target.value.replace(/\D/g, "").slice(0, 3);
-    setVPart(val);
-  }
-
-  // Preview label
-  const previewLabel = lPart && vPart
-    ? `→ L${lPart}_V${vPart.padStart(3, "0")}`
-    : lPart
-    ? `→ L${lPart}_V* (tất cả)`
-    : null;
-
-  return (
-    <div className="ss-form-group">
-      <label>Video ID</label>
-      <div className="ss-videoid-row">
-        {/* L part */}
-        <select
-          value={lPart}
-          onChange={(e) => setLPart(e.target.value)}
-          className="ss-videoid-select"
-          aria-label="Chọn L"
-        >
-          <option value="">-- L --</option>
-          {lOptions.map((l) => (
-            <option key={l} value={l}>L{l}</option>
-          ))}
-        </select>
-
-        <span className="ss-videoid-sep">_</span>
-
-        {/* V part — để trống = lấy tất cả V của L đã chọn */}
-        <div className="ss-videoid-v-wrap">
-          <span className="ss-videoid-v-prefix">V</span>
-          <input
-            type="text"
-            inputMode="numeric"
-            value={vPart}
-            onChange={handleVChange}
-            placeholder="* (tất cả)"
-            className="ss-videoid-v-input ss-videoid-v-input--wide"
-            aria-label="Nhập số V (để trống = lấy tất cả V)"
-            maxLength={3}
-          />
-        </div>
-
-        {/* Preview */}
-        {previewLabel && (
-          <span className="ss-videoid-preview">{previewLabel}</span>
-        )}
-
-        {/* Clear */}
-        {(lPart || vPart) && (
-          <button
-            type="button"
-            className="ss-btn ss-btn--ghost"
-            onClick={() => { setLPart(""); setVPart(""); }}
-          >
-            ×
-          </button>
-        )}
       </div>
     </div>
   );
@@ -269,9 +183,6 @@ export default function DataPage() {
       });
       setKeyframes(res.keyframes);
       setTotalPages(res.totalPages);
-      // Use the page returned by backend (res.page) instead of trusting the original targetPage,
-      // to avoid the case where targetPage exceeds the actual totalPages (e.g., changing filter reduces totalPages),
-      // which would cause the UI to display page > totalPages like "100 / 50".
       setPage(res.page ?? targetPage);
     } finally {
       setLoading(false);

@@ -231,23 +231,19 @@ export async function fetchKeyframes({ page = 1, perPage = 50, videoId = "", tim
  * Browse events (transcript-segmented) by video_ID (Event page).
  * Tries /api/events; falls back to a mock pool grouped like a real event list.
  */
-export async function fetchEvents({ page = 1, perPage = 50, videoId = "", eventId = "" }) {
-  const isExactVideo = /^L\d+_V\d+$/.test(videoId.trim());
-  const safeEventId = isExactVideo ? eventId : "";
-
+export async function fetchEvents({ page = 1, perPage = 50, videoId = "" }) {
   const params = new URLSearchParams({
     page,
     perPage,
     ...(videoId && { video_ID: videoId }),
-    ...(safeEventId && { event_id: safeEventId }),
   });
-
+ 
   const real = await tryReal(() => request(`/api/events?${params.toString()}`));
   if (real) return real;
-
+ 
   await mockDelay();
   const vid = videoId || "L01_V001";
-  let mockEvents = Array.from({ length: 6 }, (_, i) => {
+  const mockEvents = Array.from({ length: 6 }, (_, i) => {
     const start = i * 30;
     const end = start + 25 + i;
     return {
@@ -260,9 +256,6 @@ export async function fetchEvents({ page = 1, perPage = 50, videoId = "", eventI
       frame_count: 3,
     };
   });
-  if (safeEventId) {
-    mockEvents = mockEvents.filter((e) => String(e.event_id) === safeEventId);
-  }
   const { items, total, totalPages } = paginate(mockEvents, page, perPage);
   return { events: items, total, totalPages };
 }
