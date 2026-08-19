@@ -29,7 +29,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class VectorDB:
     index: Any
-    info_dict: Dict[str, Any]
+    info_dict: Any  # HNSW: Dict[str, dict] (key = row index string); FLATIP: List[dict] (list of events)
 
 logger.info("Loading jinaclipv2 model...")
 DEVICE, JINACLIPV2_MODEL = load_model(model_name='jina-clip-v2')
@@ -57,9 +57,15 @@ FLATIP_DANGVANTUAN = VectorDB(index=_flatip_index, info_dict=_flatip_info_dict)
 
 logger.info("All model state loaded successfully.")
 
-# row index (0..N-1) trong JINACLIPV2_ENCODED_FRAMES <-> frame_path
-# GIẢ ĐỊNH: HNSW_JINACLIPV2.info_dict[idx_str]["frame_path"] cùng format
-# với state.ALL_FRAMES[i]["frame_path"]. Nếu field tên khác, đổi ở đây.
+# ---------------------------------------------------------------------------
+# ALL_FRAMES / FRAME_PATH — derived from HNSW_JINACLIPV2.info_dict (dict of events)
+# ---------------------------------------------------------------------------
+
+logger.info("Building ALL_FRAME_PATHS / FRAME_PATH from hnsw_jinaclipv2...")
+
+# row index (0..N-1) in JINACLIPV2_ENCODED_FRAMES <-> frame_path
+# Assumption: HNSW_JINACLIPV2.info_dict[idx_str]["frame_path"] as same format
+# with state.ALL_FRAMES[i]["frame_path"].
 _missing_frame_path = [
     idx_str for idx_str, info in HNSW_JINACLIPV2.info_dict.items()
     if "frame_path" not in info
@@ -74,3 +80,50 @@ FRAME_PATH_TO_ROW: Dict[str, int] = {
     info["frame_path"]: int(idx_str)
     for idx_str, info in HNSW_JINACLIPV2.info_dict.items()
 }
+
+# ---------------------------------------------------------------------------
+# ALL_EVENTS / EVENT_INDEX — derived from FLATIP_DANGVANTUAN.info_dict (list of events)
+# ---------------------------------------------------------------------------
+
+logger.info("Building ALL_EVENTS / EVENT_INDEX from flatip_dangvantuan...")
+
+if not isinstance(FLATIP_DANGVANTUAN.info_dict, list):
+    raise TypeError(
+        f"Expected FLATIP_DANGVANTUAN.info_dict to be a list of events, "
+        f"got {type(FLATIP_DANGVANTUAN.info_dict)}"
+    )
+
+ALL_EVENTS: list = FLATIP_DANGVANTUAN.info_dict
+
+EVENT_INDEX: Dict[str, list] = {}
+for _event in ALL_EVENTS:
+    # Lưu ý field-name casing: event-level dùng "video_id" (lowercase);
+    # bên trong "keyframes" của mỗi event lại dùng "video_ID" (uppercase) — không nhầm 2 field này.
+    _vid = _event.get("video_id")
+    if _vid is None:
+        logger.warning("Event missing 'video_id' field, skipped: event_id=%s", _event.get("event_id"))
+        continue
+    EVENT_INDEX.setdefault(_vid, []).append(_event)
+
+logger.info("Loaded %d events across %d videos.", len(ALL_EVENTS), len(EVENT_INDEX))
+
+# ---------------------------------------------------------------------------
+# Design assumption check: HNSW_JINACLIPV2 (frame-level) is expected to cover
+# every frame referenced inside FLATIP_DANGVANTUAN events. Not enforced (raise)
+# because this is a data-completeness assumption, not a schema violation —
+# log loudly instead so degraded coverage is visible without hard-crashing boot.
+# ---------------------------------------------------------------------------
+
+_event_frame_paths = {
+    kf["frame_path"]
+    for _event in ALL_EVENTS
+    for kf in _event.get("keyframes", [])
+}
+_missing_in_hnsw = _event_frame_paths - FRAME_PATH_TO_ROW.keys()
+if _missing_in_hnsw:
+    logger.warning(
+        "%d frame_path(s) referenced by FLATIP_DANGVANTUAN events are missing from "
+        "HNSW_JINACLIPV2 FRAME_PATH_TO_ROW (design assumption 'HNSW covers FLATIP' violated). "
+        "Example paths: %s",
+        len(_missing_in_hnsw), list(_missing_in_hnsw)[:5],
+    )

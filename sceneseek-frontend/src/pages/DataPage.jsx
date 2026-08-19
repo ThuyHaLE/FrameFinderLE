@@ -42,10 +42,10 @@ function validateTimestamp(ts) {
 // TimestampInput
 // ---------------------------------------------------------------------------
 
-function TimestampInput({ id, label, value, onChange, placeholder = "hh:mm:ss", fallback = "00:00:00" }) {
+function TimestampInput({ id, label, value, onChange, placeholder = "hh:mm:ss", fallback = "00:00:00", disabled = false }) {
   function shift(delta) {
+    if (disabled) return;
     const base = parseTimestamp(value);
-    // If NaN (empty or wrong format) → use fallback instead of calculating from NaN
     const startFrom = (base === null || isNaN(base))
       ? (parseTimestamp(fallback) ?? 0)
       : base;
@@ -57,12 +57,13 @@ function TimestampInput({ id, label, value, onChange, placeholder = "hh:mm:ss", 
   }
 
   function handlePaste(e) {
+    if (disabled) return;
     e.preventDefault();
     onChange((e.clipboardData.getData("text") || "").trim());
   }
 
   return (
-    <div className="ss-form-group ss-form-group--inline">
+    <div className={`ss-form-group ss-form-group--inline${disabled ? " ss-form-group--disabled" : ""}`}>
       <label htmlFor={id}>{label}</label>
       <div className="ss-timestamp-row">
         <input
@@ -74,9 +75,10 @@ function TimestampInput({ id, label, value, onChange, placeholder = "hh:mm:ss", 
           onPaste={handlePaste}
           autoComplete="off"
           spellCheck={false}
+          disabled={disabled}
         />
-        <button type="button" className="ss-ts-btn" onClick={() => shift(1)}  title="+1s">▲</button>
-        <button type="button" className="ss-ts-btn" onClick={() => shift(-1)} title="-1s">▼</button>
+        <button type="button" className="ss-ts-btn" onClick={() => shift(1)}  title="+1s" disabled={disabled}>▲</button>
+        <button type="button" className="ss-ts-btn" onClick={() => shift(-1)} title="-1s" disabled={disabled}>▼</button>
       </div>
     </div>
   );
@@ -192,6 +194,15 @@ export default function DataPage() {
   // fallback to FALLBACK_L_OPTIONS if fetch fails.
   const [lOptions, setLOptions] = useState(FALLBACK_L_OPTIONS);
 
+  const isExactVideo = /^L\d+_V\d+$/.test(videoId.trim());
+
+  useEffect(() => {
+    if (!isExactVideo && (tsStart || tsEnd)) {
+      setTsStart("");
+      setTsEnd("");
+    }
+  }, [isExactVideo]); // eslint-disable-line react-hooks/exhaustive-deps
+
   useEffect(() => {
     let cancelled = false;
     fetch("/api/videos/l-options")
@@ -231,8 +242,8 @@ export default function DataPage() {
       if (s !== null && e !== null && e <= s)
         return "Thời điểm kết thúc phải sau thời điểm bắt đầu.";
     }
-    if ((tsStart || tsEnd) && !videoId.trim())
-      return "Vui lòng chọn Video ID khi lọc theo timestamp.";
+    if ((tsStart || tsEnd) && !isExactVideo)
+      return "Vui lòng chọn đúng 1 Video (cả L và V) khi lọc theo timestamp.";
     return null;
   }
 
@@ -310,6 +321,7 @@ export default function DataPage() {
             onChange={setTsStart}
             placeholder="hh:mm:ss[.SSS]"
             fallback="00:00:00"
+            disabled={!isExactVideo}
           />
           <TimestampInput
             id="ts_end"
@@ -318,13 +330,17 @@ export default function DataPage() {
             onChange={setTsEnd}
             placeholder="hh:mm:ss[.SSS]"
             fallback={endFallback}
+            disabled={!isExactVideo}
           />
         </div>
 
         <p className="ss-form-hint">
-          Paste trực tiếp timestamp từ video player.
-          {tsStart && !tsEnd && " Chỉ nhập Bắt đầu → frame gần nhất từ thời điểm đó."}
-          {tsStart &&  tsEnd && " Hiển thị frame trong khoảng đã chọn."}
+          {isExactVideo
+            ? <>Paste trực tiếp timestamp từ video player.
+                {tsStart && !tsEnd && " Chỉ nhập Bắt đầu → frame gần nhất từ thời điểm đó."}
+                {tsStart &&  tsEnd && " Hiển thị frame trong khoảng đã chọn."}
+              </>
+            : "Chọn đúng 1 Video (cả L và V) để lọc theo timestamp."}
         </p>
 
         {filterError && <p className="ss-form-error">{filterError}</p>}

@@ -195,28 +195,76 @@ export async function sendFeedback(dbIdx, action, sessionId) {
   return real ?? { feedbackStatus: action, dbIdx };
 }
 
+
+
 /**
  * Browse keyframes by video_ID / timestamp (Data page).
  * Tries /api/data; falls back to mock pool filtered by videoId.
  */
 export async function fetchKeyframes({ page = 1, perPage = 50, videoId = "", timestamp = "", timestamp_end = "" }) {
+  const isExactVideo = /^L\d+_V\d+$/.test(videoId.trim());
+  const safeTimestamp = isExactVideo ? timestamp : "";
+  const safeTimestampEnd = isExactVideo ? timestamp_end : "";
+
   const params = new URLSearchParams({
     page,
     perPage,
     ...(videoId && { video_ID: videoId }),
-    ...(timestamp && { timestamp }),
-    ...(timestamp_end && { timestamp_end }),
+    ...(safeTimestamp && { timestamp: safeTimestamp }),
+    ...(safeTimestampEnd && { timestamp_end: safeTimestampEnd }),
   });
 
   const real = await tryReal(() => request(`/api/data?${params.toString()}`));
   if (real) return real;
 
   await mockDelay();
-  const pool = videoId
+  const pool = isExactVideo
+    ? Array.from({ length: 30 }, (_, i) => makeMockResult(i + 1, videoId))
+    : videoId
     ? Array.from({ length: 30 }, (_, i) => makeMockResult(i + 1, videoId))
     : MOCK_POOL;
   const { items, total, totalPages } = paginate(pool, page, perPage);
   return { keyframes: items, total, totalPages };
+}
+
+/**
+ * Browse events (transcript-segmented) by video_ID (Event page).
+ * Tries /api/events; falls back to a mock pool grouped like a real event list.
+ */
+export async function fetchEvents({ page = 1, perPage = 50, videoId = "", eventId = "" }) {
+  const isExactVideo = /^L\d+_V\d+$/.test(videoId.trim());
+  const safeEventId = isExactVideo ? eventId : "";
+
+  const params = new URLSearchParams({
+    page,
+    perPage,
+    ...(videoId && { video_ID: videoId }),
+    ...(safeEventId && { event_id: safeEventId }),
+  });
+
+  const real = await tryReal(() => request(`/api/events?${params.toString()}`));
+  if (real) return real;
+
+  await mockDelay();
+  const vid = videoId || "L01_V001";
+  let mockEvents = Array.from({ length: 6 }, (_, i) => {
+    const start = i * 30;
+    const end = start + 25 + i;
+    return {
+      video_id: vid,
+      event_id: i,
+      start,
+      end,
+      text: `[Mock] Nội dung sự kiện ${i + 1} của ${vid}, diễn ra từ ${start}s đến ${end}s.`,
+      frames: Array.from({ length: 3 }, (_, j) => makeMockResult(i * 3 + j + 1, vid)),
+      frame_count: 3,
+    };
+  });
+  if (safeEventId) {
+    mockEvents = mockEvents.filter((e) => String(e.event_id) === safeEventId);
+  }
+  const { items, total, totalPages } = paginate(mockEvents, page, perPage);
+  return { events: items, total, totalPages };
 }
 
 /**

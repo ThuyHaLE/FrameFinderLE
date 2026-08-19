@@ -55,6 +55,14 @@ def get_frame_by_path():
     return state.FRAME_BY_PATH
 
 
+def get_all_events():
+    return model_state.ALL_EVENTS
+
+
+def get_event_index():
+    return model_state.EVENT_INDEX
+
+
 # ---------------------------------------------------------------------------
 # Model & search index (model_state.py)
 # ---------------------------------------------------------------------------

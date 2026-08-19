@@ -53,7 +53,7 @@ def get_data(
 
     # 2. Filter & Sort by timestamp
     if video_ID:
-        if timestamp:
+        if "_V" in video_ID and timestamp:
             start_sec = parse_timestamp(timestamp)
             if timestamp_end:
                 end_sec = parse_timestamp(timestamp_end)
