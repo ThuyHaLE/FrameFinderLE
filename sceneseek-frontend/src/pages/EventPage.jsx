@@ -320,8 +320,11 @@ export default function EventPage() {
               key={g.video_id}
               videoId={g.video_id}
               events={g.events}
-              // no search-similar action in browse mode
+              // no search-similar action in browse mode, and no SearchProvider
+              // wraps EventPage — FeedbackButtons needs SearchContext, so it must
+              // stay off here (same convention as DataPage's GalleryItem readOnly/showFeedback={false})
               onSearchSimilar={undefined}
+              showFeedback={false}
             />
           ))}
         </div>

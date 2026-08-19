@@ -1,9 +1,9 @@
-// sceneseek-frontend/src/components/results/EventFrameStrip.jsx
+// components/results/EventFrameStrip.jsx
 
 import FeedbackButtons from "./FeedbackButtons";
 import { useModal } from "../../context/ModalContext";
 
-export default function EventFrameStrip({ frames, onSearchSimilar }) {
+export default function EventFrameStrip({ frames, onSearchSimilar, showFeedback = true }) {
   const { openModal } = useModal();
 
   function openFrame(indexInEvent) {
@@ -30,16 +30,22 @@ export default function EventFrameStrip({ frames, onSearchSimilar }) {
               <img src={frame.thumbnail} alt={frame.frame_idx} loading="lazy" />
             </button>
 
-            <button
-              type="button"
-              aria-label="Tìm frame tương tự"
-              className="ss-gallery-item__similar-btn"
-              onClick={(e) => handleSearchSimilar(e, frame.db_idx)}
-            >
-              🔍
-            </button>
+            {onSearchSimilar && (
+              <button
+                type="button"
+                aria-label="Tìm frame tương tự"
+                className="ss-gallery-item__similar-btn"
+                onClick={(e) => handleSearchSimilar(e, frame.db_idx)}
+              >
+                🔍
+              </button>
+            )}
           </div>
-          <FeedbackButtons dbIdx={frame.db_idx} feedback={frame.feedback} />
+          {/* FeedbackButtons reads sessionId from SearchContext (useSearchContext) —
+              only safe to render inside SearchProvider (HomePage's search results tree).
+              Browse-only pages like EventPage aren't wrapped in SearchProvider, so they
+              must pass showFeedback={false} or this throws "must be used within SearchProvider". */}
+          {showFeedback && <FeedbackButtons dbIdx={frame.db_idx} feedback={frame.feedback} />}
         </div>
       ))}
     </div>

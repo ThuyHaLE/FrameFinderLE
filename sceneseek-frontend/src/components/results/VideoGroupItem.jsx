@@ -1,10 +1,14 @@
-// sceneseek-frontend/src/components/results/VideoGroupItem.jsx
+// components/results/VideoGroupItem.jsx
 
 import EventFrameStrip from "./EventFrameStrip";
 
-export default function VideoGroupItem({ videoId, events, onSearchSimilar }) {
+export default function VideoGroupItem({ videoId, events, onSearchSimilar, showFeedback = true }) {
+  // Defensive: filter out events with no usable frames instead of letting
+  // ev.frames[0] throw when frames is undefined/empty — a shape mismatch
+  // from the backend shouldn't take down the whole page.
   const safeEvents = (events || []).filter((ev) => Array.isArray(ev.frames) && ev.frames.length > 0);
   if (safeEvents.length === 0) return null;
+
   const totalFrames = safeEvents.reduce((sum, e) => sum + (e.frame_count ?? e.frames.length), 0);
 
   return (
@@ -12,11 +16,11 @@ export default function VideoGroupItem({ videoId, events, onSearchSimilar }) {
       <div className="ss-video-group__header">
         <span className="ss-video-group__video">{videoId}</span>
         <span className="ss-video-group__count">
-          {totalFrames} frame{events.length > 1 ? ` · ${events.length} sự kiện` : ""}
+          {totalFrames} frame{safeEvents.length > 1 ? ` · ${safeEvents.length} sự kiện` : ""}
         </span>
       </div>
 
-      {events.map((ev, i) => (
+      {safeEvents.map((ev, i) => (
         <div
           className="ss-video-group__event"
           key={`${videoId}-${ev.start ?? "na"}-${ev.frames[0]?.db_idx ?? i}`}
@@ -33,7 +37,7 @@ export default function VideoGroupItem({ videoId, events, onSearchSimilar }) {
               {ev.text}
             </p>
           )}
-          <EventFrameStrip frames={ev.frames} onSearchSimilar={onSearchSimilar} />
+          <EventFrameStrip frames={ev.frames} onSearchSimilar={onSearchSimilar} showFeedback={showFeedback} />
         </div>
       ))}
     </div>
