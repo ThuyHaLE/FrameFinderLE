@@ -3,7 +3,9 @@
 import EventFrameStrip from "./EventFrameStrip";
 
 export default function VideoGroupItem({ videoId, events, onSearchSimilar }) {
-  const totalFrames = events.reduce((sum, e) => sum + (e.frame_count ?? e.frames.length), 0);
+  const safeEvents = (events || []).filter((ev) => Array.isArray(ev.frames) && ev.frames.length > 0);
+  if (safeEvents.length === 0) return null;
+  const totalFrames = safeEvents.reduce((sum, e) => sum + (e.frame_count ?? e.frames.length), 0);
 
   return (
     <div className="ss-video-group">

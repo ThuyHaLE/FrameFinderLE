@@ -17,6 +17,54 @@ const FALLBACK_L_OPTIONS = Array.from({ length: 24 }, (_, i) =>
   String(i + 1).padStart(2, "0")
 ); // ["01", "02", ..., "24"]
 
+// Exact "L13_V001" format — event_id is local per video, so range filtering
+// only makes sense when exactly one video is selected (not an "L13" prefix).
+const EXACT_VIDEO_ID_RE = /^L\d+_V\d+$/;
+
+// ---------------------------------------------------------------------------
+// EventIdInput — integer input with ▲▼ shift buttons, mirrors TimestampInput's
+// mechanism but for event_id instead of hh:mm:ss. Simpler than TimestampInput
+// because the fallback here is a fixed constant (0 or -1), not something that
+// has to be derived from currently loaded data.
+// ---------------------------------------------------------------------------
+
+function EventIdInput({ id, label, value, onChange, fallback, placeholder }) {
+  function shift(delta) {
+    const trimmed = value.trim();
+    const base = trimmed === "" ? fallback : parseInt(trimmed, 10);
+    const startFrom = isNaN(base) ? fallback : base;
+    onChange(String(startFrom + delta));
+  }
+
+  function handleChange(e) {
+    const val = e.target.value;
+    // allow empty (-> uses fallback), optional leading '-', digits only
+    if (val === "" || /^-?\d*$/.test(val)) {
+      onChange(val);
+    }
+  }
+
+  return (
+    <div className="ss-form-group ss-form-group--inline">
+      <label htmlFor={id}>{label}</label>
+      <div className="ss-timestamp-row">
+        <input
+          id={id}
+          type="text"
+          inputMode="numeric"
+          value={value}
+          placeholder={placeholder}
+          onChange={handleChange}
+          autoComplete="off"
+          spellCheck={false}
+        />
+        <button type="button" className="ss-ts-btn" onClick={() => shift(1)} title="+1">▲</button>
+        <button type="button" className="ss-ts-btn" onClick={() => shift(-1)} title="-1">▼</button>
+      </div>
+    </div>
+  );
+}
+
 // ---------------------------------------------------------------------------
 // VideoIDSelector — L select + V text input → "L13_V001"
 // (identical to DataPage's — kept local/duplicated rather than shared to avoid
@@ -106,6 +154,9 @@ function VideoIDSelector({ videoId, onChange, lOptions }) {
 
 export default function EventPage() {
   const [videoId, setVideoId] = useState("");
+  const [eventIdStart, setEventIdStart] = useState("");
+  const [eventIdEnd, setEventIdEnd] = useState("");
+  const [filterError, setFilterError] = useState(null);
 
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
@@ -134,17 +185,47 @@ export default function EventPage() {
   }, []);
 
   // -------------------------------------------------------------------------
+  // Validation
+  // -------------------------------------------------------------------------
+
+  function validate() {
+    const hasEventIdFilter = eventIdStart.trim() !== "" || eventIdEnd.trim() !== "";
+    if (eventIdStart.trim() && !/^-?\d+$/.test(eventIdStart.trim()))
+      return "Event ID bắt đầu phải là số nguyên.";
+    if (eventIdEnd.trim() && !/^-?\d+$/.test(eventIdEnd.trim()))
+      return "Event ID kết thúc phải là số nguyên (-1 = event cuối cùng).";
+    // event_id is local per video (resets to 0 for each video), so the range
+    // filter only makes sense against exactly one video, not an "L13" prefix.
+    if (hasEventIdFilter && !EXACT_VIDEO_ID_RE.test(videoId.trim()))
+      return "Vui lòng chọn đúng 1 Video ID (VD: L21_V001) khi lọc theo Event ID.";
+    if (eventIdStart.trim() && eventIdEnd.trim()) {
+      const s = parseInt(eventIdStart, 10);
+      const e = parseInt(eventIdEnd, 10);
+      if (!isNaN(s) && !isNaN(e) && e !== -1 && e < s)
+        return "Event ID kết thúc phải >= Event ID bắt đầu (hoặc -1 cho event cuối).";
+    }
+    return null;
+  }
+
+  // -------------------------------------------------------------------------
   // Data loading
   // -------------------------------------------------------------------------
 
   const load = useCallback(async (targetPage = 1, overrides = {}) => {
-    const filters = { videoId, ...overrides };
+    const filters = {
+      videoId,
+      eventIdStart,
+      eventIdEnd,
+      ...overrides, // allow calling with new values immediately, avoid stale closure
+    };
     setLoading(true);
     try {
       const res = await fetchEvents({
         page: targetPage,
         perPage: 50,
         videoId: filters.videoId.trim(),
+        eventIdStart: filters.eventIdStart.trim(),
+        eventIdEnd: filters.eventIdEnd.trim(),
       });
       setEvents(res.events);
       setTotalPages(res.totalPages);
@@ -154,7 +235,7 @@ export default function EventPage() {
     } finally {
       setLoading(false);
     }
-  }, [videoId]);
+  }, [videoId, eventIdStart, eventIdEnd]);
 
   useEffect(() => { load(1); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -164,13 +245,19 @@ export default function EventPage() {
 
   function handleSubmit(e) {
     e.preventDefault();
+    const err = validate();
+    if (err) { setFilterError(err); return; }
+    setFilterError(null);
     load(1);
   }
 
   function handleClear() {
     setVideoId("");
+    setEventIdStart("");
+    setEventIdEnd("");
+    setFilterError(null);
     setSelectorResetKey((k) => k + 1);
-    load(1, { videoId: "" });
+    load(1, { videoId: "", eventIdStart: "", eventIdEnd: "" });
   }
 
   // -------------------------------------------------------------------------
@@ -185,6 +272,32 @@ export default function EventPage() {
 
       <form className="ss-search-form" onSubmit={handleSubmit}>
         <VideoIDSelector key={selectorResetKey} videoId={videoId} onChange={setVideoId} lOptions={lOptions} />
+
+        <div className="ss-form-row">
+          <EventIdInput
+            id="event_id_start"
+            label="Bắt đầu tại"
+            value={eventIdStart}
+            onChange={setEventIdStart}
+            fallback={0}
+            placeholder="0 (event đầu tiên)"
+          />
+          <EventIdInput
+            id="event_id_end"
+            label="Kết thúc tại"
+            value={eventIdEnd}
+            onChange={setEventIdEnd}
+            fallback={-1}
+            placeholder="-1 (event cuối cùng)"
+          />
+        </div>
+
+        <p className="ss-form-hint">
+          Lọc theo Event ID chỉ áp dụng khi đã chọn đúng 1 Video (VD: L21_V001).
+          {" "}Để trống → 0 (đầu) và -1 (cuối).
+        </p>
+
+        {filterError && <p className="ss-form-error">{filterError}</p>}
 
         <div className="ss-form-actions">
           <button type="submit" className="ss-btn ss-btn--primary" disabled={loading}>
@@ -207,8 +320,7 @@ export default function EventPage() {
               key={g.video_id}
               videoId={g.video_id}
               events={g.events}
-              // no search-similar action in browse mode — same readOnly intent
-              // as DataPage's GalleryItem readOnly usage
+              // no search-similar action in browse mode
               onSearchSimilar={undefined}
             />
           ))}

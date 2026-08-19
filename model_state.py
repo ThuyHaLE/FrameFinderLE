@@ -15,6 +15,7 @@ Router gets these objects via Depends() in deps.py, e.g.:
 import logging
 from dataclasses import dataclass
 from typing import Any, Dict
+import state
 
 from models.model_init import load_model
 from database.db_init import (
@@ -93,19 +94,56 @@ if not isinstance(FLATIP_DANGVANTUAN.info_dict, list):
         f"got {type(FLATIP_DANGVANTUAN.info_dict)}"
     )
 
-ALL_EVENTS: list = FLATIP_DANGVANTUAN.info_dict
+_raw_events = FLATIP_DANGVANTUAN.info_dict
 
-EVENT_INDEX: Dict[str, list] = {}
-for _event in ALL_EVENTS:
+ALL_EVENTS: list = []
+_skipped_no_video_id = 0
+_skipped_no_frames = 0
+for _event in _raw_events:
     # Lưu ý field-name casing: event-level dùng "video_id" (lowercase);
     # bên trong "keyframes" của mỗi event lại dùng "video_ID" (uppercase) — không nhầm 2 field này.
     _vid = _event.get("video_id")
     if _vid is None:
         logger.warning("Event missing 'video_id' field, skipped: event_id=%s", _event.get("event_id"))
+        _skipped_no_video_id += 1
         continue
-    EVENT_INDEX.setdefault(_vid, []).append(_event)
 
-logger.info("Loaded %d events across %d videos.", len(ALL_EVENTS), len(EVENT_INDEX))
+    # Join raw keyframes (frame_path only) -> full frame dict (db_idx, thumbnail,
+    # timestamp_sec...) via state.FRAME_BY_PATH, same pattern used everywhere else
+    # (search_router.py's /similar and /event-mention). Without this join, the
+    # frontend has no db_idx/thumbnail to render images or wire feedback/similar buttons.
+    _frames = []
+    for _kf in _event.get("keyframes", []):
+        _frame = state.FRAME_BY_PATH.get(_kf.get("frame_path"))
+        if _frame is not None:
+            _frames.append(_frame)
+
+    if not _frames:
+        logger.warning(
+            "Event has no resolvable frames, skipped: video_id=%s event_id=%s (raw keyframes=%d)",
+            _vid, _event.get("event_id"), len(_event.get("keyframes", [])),
+        )
+        _skipped_no_frames += 1
+        continue
+
+    ALL_EVENTS.append({
+        "video_id":    _vid,
+        "event_id":    _event.get("event_id"),
+        "start":       _event.get("start"),
+        "end":         _event.get("end"),
+        "text":        _event.get("text"),
+        "frames":      _frames,
+        "frame_count": len(_frames),
+    })
+
+EVENT_INDEX: Dict[str, list] = {}
+for _ev in ALL_EVENTS:
+    EVENT_INDEX.setdefault(_ev["video_id"], []).append(_ev)
+
+logger.info(
+    "Loaded %d events across %d videos (skipped: %d no video_id, %d no resolvable frames).",
+    len(ALL_EVENTS), len(EVENT_INDEX), _skipped_no_video_id, _skipped_no_frames,
+)
 
 # ---------------------------------------------------------------------------
 # Design assumption check: HNSW_JINACLIPV2 (frame-level) is expected to cover
