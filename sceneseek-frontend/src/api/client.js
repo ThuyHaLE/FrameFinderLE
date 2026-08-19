@@ -231,7 +231,7 @@ export async function fetchKeyframes({ page = 1, perPage = 50, videoId = "", tim
  * Browse events (transcript-segmented) by video_ID (Event page).
  * Tries /api/events; falls back to a mock pool grouped like a real event list.
  */
-export async function fetchEvents({ page = 1, perPage = 50, videoId = "", eventIdStart = "", eventIdEnd = "" }) {
+export async function fetchEvents({ page = 1, perPage = 20, videoId = "", eventIdStart = "", eventIdEnd = "" }) {
   const params = new URLSearchParams({
     page,
     perPage,

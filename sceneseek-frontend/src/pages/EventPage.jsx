@@ -28,8 +28,9 @@ const EXACT_VIDEO_ID_RE = /^L\d+_V\d+$/;
 // has to be derived from currently loaded data.
 // ---------------------------------------------------------------------------
 
-function EventIdInput({ id, label, value, onChange, fallback, placeholder }) {
+function EventIdInput({ id, label, value, onChange, fallback, placeholder, disabled = false }) {
   function shift(delta) {
+    if (disabled) return;
     const trimmed = value.trim();
     const base = trimmed === "" ? fallback : parseInt(trimmed, 10);
     const startFrom = isNaN(base) ? fallback : base;
@@ -37,6 +38,7 @@ function EventIdInput({ id, label, value, onChange, fallback, placeholder }) {
   }
 
   function handleChange(e) {
+    if (disabled) return;
     const val = e.target.value;
     // allow empty (-> uses fallback), optional leading '-', digits only
     if (val === "" || /^-?\d*$/.test(val)) {
@@ -45,7 +47,7 @@ function EventIdInput({ id, label, value, onChange, fallback, placeholder }) {
   }
 
   return (
-    <div className="ss-form-group ss-form-group--inline">
+    <div className={`ss-form-group ss-form-group--inline${disabled ? " ss-form-group--disabled" : ""}`}>
       <label htmlFor={id}>{label}</label>
       <div className="ss-timestamp-row">
         <input
@@ -57,9 +59,10 @@ function EventIdInput({ id, label, value, onChange, fallback, placeholder }) {
           onChange={handleChange}
           autoComplete="off"
           spellCheck={false}
+          disabled={disabled}
         />
-        <button type="button" className="ss-ts-btn" onClick={() => shift(1)} title="+1">▲</button>
-        <button type="button" className="ss-ts-btn" onClick={() => shift(-1)} title="-1">▼</button>
+        <button type="button" className="ss-ts-btn" onClick={() => shift(1)} title="+1" disabled={disabled}>▲</button>
+        <button type="button" className="ss-ts-btn" onClick={() => shift(-1)} title="-1" disabled={disabled}>▼</button>
       </div>
     </div>
   );
@@ -146,7 +149,7 @@ function VideoIDSelector({ videoId, onChange, lOptions }) {
       </div>
     </div>
   );
-}
+} 
 
 // ---------------------------------------------------------------------------
 // EventPage
@@ -168,6 +171,15 @@ export default function EventPage() {
   const [selectorResetKey, setSelectorResetKey] = useState(0);
 
   const [lOptions, setLOptions] = useState(FALLBACK_L_OPTIONS);
+
+  const isExactVideo = EXACT_VIDEO_ID_RE.test(videoId.trim());
+
+  useEffect(() => {
+    if (!isExactVideo && (eventIdStart || eventIdEnd)) {
+      setEventIdStart("");
+      setEventIdEnd("");
+    }
+  }, [isExactVideo]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     let cancelled = false;
@@ -222,7 +234,7 @@ export default function EventPage() {
     try {
       const res = await fetchEvents({
         page: targetPage,
-        perPage: 50,
+        perPage: 20,
         videoId: filters.videoId.trim(),
         eventIdStart: filters.eventIdStart.trim(),
         eventIdEnd: filters.eventIdEnd.trim(),
@@ -281,6 +293,7 @@ export default function EventPage() {
             onChange={setEventIdStart}
             fallback={0}
             placeholder="0 (event đầu tiên)"
+            disabled={!isExactVideo}
           />
           <EventIdInput
             id="event_id_end"
@@ -289,12 +302,14 @@ export default function EventPage() {
             onChange={setEventIdEnd}
             fallback={-1}
             placeholder="-1 (event cuối cùng)"
+            disabled={!isExactVideo}
           />
         </div>
 
         <p className="ss-form-hint">
-          Lọc theo Event ID chỉ áp dụng khi đã chọn đúng 1 Video (VD: L21_V001).
-          {" "}Để trống → 0 (đầu) và -1 (cuối).
+          {isExactVideo
+            ? "Để trống → 0 (đầu) và -1 (cuối)."
+            : "Chọn đúng 1 Video ID (VD: L21_V001) để lọc theo Event ID."}
         </p>
 
         {filterError && <p className="ss-form-error">{filterError}</p>}
