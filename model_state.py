@@ -98,11 +98,26 @@ if not isinstance(EVENT_TRANSCRIPTS, list):
         f"got {type(EVENT_TRANSCRIPTS)}"
     )
 
-_raw_events = EVENT_TRANSCRIPTS
+_raw_events = sorted(EVENT_TRANSCRIPTS, key=lambda e: (e.get("video_id") or "", e.get("start") or 0))
 
 ALL_EVENTS: list = []
 _skipped_no_video_id = 0
 _skipped_no_frames = 0
+
+# event_id in the raw data is NOT local per video — it can start above 0
+# and have gaps (e.g. observed for L21_V014: [0, 6, 16, 26, 44, ...] instead
+# of [0, 1, 2, ...]), since the transcripts were assembled from multiple
+# sources/batches. We reassign a local, 0-based, gap-free event_id per video
+# here so downstream consumers (event_router.py filtering, frontend range
+# inputs) can safely assume "event_id resets to 0 per video" — this is the
+# single place that assumption is made true, so it doesn't leak elsewhere.
+#
+# Renumbering happens AFTER frame-resolution filtering below (skipped events
+# don't consume a local id), and follows the original list order per video,
+# which is assumed chronological (raw event_id increases monotonically per
+# video in the source data).
+_local_event_counter: Dict[str, int] = {}
+
 for _event in _raw_events:
     # Lưu ý field-name casing: event-level dùng "video_id" (lowercase);
     # bên trong "keyframes" của mỗi event lại dùng "video_ID" (uppercase) — không nhầm 2 field này.
@@ -112,10 +127,6 @@ for _event in _raw_events:
         _skipped_no_video_id += 1
         continue
 
-    # Join raw keyframes (frame_path only) -> full frame dict (db_idx, thumbnail,
-    # timestamp_sec...) via state.FRAME_BY_PATH, same pattern used everywhere else
-    # (search_router.py's /similar and /event-mention). Without this join, the
-    # frontend has no db_idx/thumbnail to render images or wire feedback/similar buttons.
     _frames = []
     for _kf in _event.get("keyframes", []):
         _frame = state.FRAME_BY_PATH.get(_kf.get("frame_path"))
@@ -130,14 +141,18 @@ for _event in _raw_events:
         _skipped_no_frames += 1
         continue
 
+    _local_id = _local_event_counter.get(_vid, 0)
+    _local_event_counter[_vid] = _local_id + 1
+
     ALL_EVENTS.append({
-        "video_id":    _vid,
-        "event_id":    _event.get("event_id"),
-        "start":       _event.get("start"),
-        "end":         _event.get("end"),
-        "text":        _event.get("text"),
-        "frames":      _frames,
-        "frame_count": len(_frames),
+        "video_id":            _vid,
+        "event_id":            _local_id,               # local, 0-based, gap-free — used everywhere downstream
+        "source_event_id":     _event.get("event_id"),   # original raw id, kept for debugging/traceability only
+        "start":               _event.get("start"),
+        "end":                 _event.get("end"),
+        "text":                _event.get("text"),
+        "frames":              _frames,
+        "frame_count":         len(_frames),
     })
 
 EVENT_INDEX: Dict[str, list] = {}
