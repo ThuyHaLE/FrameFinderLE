@@ -1,0 +1,4 @@
+E1: Khoảnh khắc đầu tiên bột được bỏ vào tô măng tây.
+E2: Khoảnh khắc đầu tiên thấy miến măng tây đầu tiên tiếp xúc với dầu trong chảo.
+E3: Khoảnh khắc miếng măng tây đầu tiên rời khỏi chảo dầu.
+E4: Khoảng khắc miếng măng tây cuối cùng rời chảo dầu và nằm hoàn toàn trên dĩa.
