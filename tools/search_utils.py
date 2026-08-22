@@ -158,7 +158,7 @@ def search_hnsw_jinaclipv2_batch(
 
 
 def hnsw_jinaclipv2_search(query: str, k: int = 5, truncate_dim: Optional[int] = None,
-           index=None, device=None, info_dict: Optional[dict] = None,) -> List[dict]:
+                           index=None, device=None, info_dict: Optional[dict] = None,) -> List[dict]:
     """Find top-keyframe matches for a single query. Wrapper around search_hnsw_jinaclipv2_batch()."""
     return search_hnsw_jinaclipv2_batch(
         [query], k=k, truncate_dim=truncate_dim,
@@ -202,21 +202,34 @@ def sort_results(results: list, display_option: str) -> list:
     return results
 
 
-def cluster_by_video(start_results: list, end_results: list, video_index: dict, min_occurrences: int = 2) -> list:
+def cluster_by_video(channel_results: List[list], video_index: dict, 
+                     min_occurrences: int = 2) -> list:
     """
-    Group start_results + end_results by video_ID:
-      1. video_ID only appears < min_occurrences times in the entire pool (start+end)
-         → discard, not enough to identify a real segment.
-      2. Remaining video_IDs → use MIN/MAX frame_idx as start-end boundaries.
-      3. Retrieve ALL real frames within the [min, max] range from video_index (already normalized
-         fields: video_id, frame_idx, timestamp_sec, db_idx, thumbnail).
-      4. Score cụm = best_start_distance + best_end_distance (nếu có đủ cả 2 channel),
-         dùng để sort cụm nào khớp truy vấn tốt nhất lên đầu.
+    Generalized version of the old start/end clustering — supports N ordered
+    keyframe queries (channel 0 = earliest scene ... channel N-1 = latest scene)
+    instead of just start/end.
+
+    channel_results: list of result-lists, in the SAME order the user entered
+        the scenes (e.g. [results_for_cảnh_1, results_for_cảnh_2, results_for_cảnh_3]).
+        Each results-list is the output of one query from search_hnsw_jinaclipv2_batch.
+
+    Steps (same logic as before, just N-way instead of 2-way):
+      1. Pool all channels together, tag each item with its channel index.
+      2. video_ID appearing < min_occurrences times in the pool → discard.
+      3. Use MIN/MAX frame_idx across the WHOLE pool (not per-channel) as the
+         cluster boundary — same as the old start/end behavior. This does not
+         enforce that channel i's frame_idx < channel i+1's frame_idx; it just
+         defines the visible range. (See note below if strict ordering is needed.)
+      4. Retrieve all real frames within [min, max] from video_index.
+      5. Score = sum of best (min) distance per channel that has >=1 hit in
+         this video (channels with 0 hits contribute 0 — same fallback as before).
     """
-    pool = (
-        [dict(r, _channel="start") for r in start_results]
-        + [dict(r, _channel="end") for r in end_results]
-    )
+    if not channel_results:
+        return []
+
+    pool = []
+    for channel_idx, results in enumerate(channel_results):
+        pool.extend(dict(r, _channel=channel_idx) for r in results)
 
     by_video = {}
     for r in pool:
@@ -225,7 +238,7 @@ def cluster_by_video(start_results: list, end_results: list, video_index: dict, 
     clusters = []
     for video_ID, items in by_video.items():
         if len(items) < min_occurrences:
-            continue  # match single 1 time — not enough to identify a segment
+            continue  # not enough hits to identify a real segment
 
         start_item = min(items, key=lambda r: r["frame_idx"])
         end_item = max(items, key=lambda r: r["frame_idx"])
@@ -241,19 +254,21 @@ def cluster_by_video(start_results: list, end_results: list, video_index: dict, 
         if not frames_in_range:
             continue
 
-        start_scores = [r["distance"] for r in items if r["_channel"] == "start"]
-        end_scores = [r["distance"] for r in items if r["_channel"] == "end"]
-        score = (min(start_scores) if start_scores else 0) + (min(end_scores) if end_scores else 0)
+        score = 0.0
+        for channel_idx in range(len(channel_results)):
+            channel_scores = [r["distance"] for r in items if r["_channel"] == channel_idx]
+            score += min(channel_scores) if channel_scores else 0.0
 
         clusters.append({
             "video_id": video_ID,
             "score": score,
             "frame_count": len(frames_in_range),
-            "frames": frames_in_range,   # already have thumbnail/db_idx/frame_idx/timestamp_sec
+            "frames": frames_in_range,
         })
 
     clusters.sort(key=lambda c: c["score"])
     return clusters
+
 
 def search_flatip_dangvantuan_batch(
         queries: List[str], k: int = 5,

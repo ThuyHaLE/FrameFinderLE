@@ -91,6 +91,30 @@ function mockSearchResponse(page, imagesPerPage, shuffle = false) {
   return { results: items, totalImages: total, page, totalPages };
 }
 
+function makeMockCluster(i, videoId) {
+  const vid = videoId ?? `L01_V${String((i % 5) + 1).padStart(3, "0")}`;
+  const frameCount = 3 + (i % 3); // 3–5 frames mỗi cluster, để UI test được nhiều size
+  return {
+    video_id: vid,
+    event_id: i,               // vô hại với event_boundary (không dùng field này), cần thiết cho event_mention
+    score: Math.max(0, 1 - i * 0.02),
+    frame_count: frameCount,
+    frames: Array.from({ length: frameCount }, (_, j) =>
+      makeMockResult(i * 10 + j + 1, vid)
+    ),
+  };
+}
+
+const MOCK_CLUSTER_POOL = Array.from({ length: 40 }, (_, i) => makeMockCluster(i + 1));
+
+function mockClusterResponse(page, imagesPerPage, shuffle = false) {
+  const pool = shuffle
+    ? [...MOCK_CLUSTER_POOL].sort(() => Math.random() - 0.5)
+    : MOCK_CLUSTER_POOL;
+  const { items, total, totalPages } = paginate(pool, page, imagesPerPage);
+  return { results: items, totalImages: total, page, totalPages };
+}
+
 // ---------------------------------------------------------------------------
 // Public API
 // ---------------------------------------------------------------------------
@@ -122,7 +146,9 @@ export async function searchByType(typeKey, fieldValues, opts) {
   if (real) return real;
 
   await mockDelay();
-  return mockSearchResponse(page, imagesPerPage);
+  return type.resultShape === "cluster"
+    ? mockClusterResponse(page, imagesPerPage)
+    : mockSearchResponse(page, imagesPerPage);
 }
 
 /**
@@ -152,7 +178,9 @@ export async function refineResults(typeKey, fieldValues, opts) {
   if (real) return real;
 
   await mockDelay();
-  return mockSearchResponse(page, imagesPerPage, /* shuffle= */ true);
+  return type.resultShape === "cluster"
+    ? mockClusterResponse(page, imagesPerPage, /* shuffle= */ true)
+    : mockSearchResponse(page, imagesPerPage, /* shuffle= */ true);
 }
 
 /**

@@ -121,6 +121,31 @@ export function SearchProvider({ children }) {
     setFieldValues((prev) => ({ ...prev, [name]: value }));
   }, []);
 
+  // [MỚI] List-field actions — used by fields of type "query_list" (e.g. Type 2's N ordered scenes)
+  const updateListField = useCallback((name, index, value) => {
+    setFieldValues((prev) => {
+      const list = [...(prev[name] ?? [])];
+      list[index] = value;
+      return { ...prev, [name]: list };
+    });
+  }, []);
+
+  const addListFieldItem = useCallback((name, max) => {
+    setFieldValues((prev) => {
+      const list = prev[name] ?? [];
+      if (list.length >= max) return prev;
+      return { ...prev, [name]: [...list, ""] };
+    });
+  }, []);
+
+  const removeListFieldItem = useCallback((name, index, min) => {
+    setFieldValues((prev) => {
+      const list = prev[name] ?? [];
+      if (list.length <= min) return prev;
+      return { ...prev, [name]: list.filter((_, i) => i !== index) };
+    });
+  }, []);
+
   // Debounced-by-caller keyword fetch — call this from the input's onChange handler.
   const refreshKeywordSuggestions = useCallback(async (text) => {
     if (!useKeywords) return;
@@ -139,8 +164,11 @@ export function SearchProvider({ children }) {
 
   const clearKeywords = useCallback(() => setKeywords([]), []);
 
+  // [MỚI] isQueryEmpty giờ hiểu cả field kiểu array (query_list), không chỉ string
   const isQueryEmpty = useCallback(() => {
-    const hasFieldText = Object.values(fieldValues).some((v) => v && v.trim());
+    const hasFieldText = Object.values(fieldValues).some((v) =>
+      Array.isArray(v) ? v.some((item) => item && item.trim()) : v && v.trim()
+    );
     return !hasFieldText && keywords.length === 0;
   }, [fieldValues, keywords]);
 
@@ -241,6 +269,9 @@ export function SearchProvider({ children }) {
     selectType,
     fieldValues,
     updateField,
+    updateListField,        
+    addListFieldItem,       
+    removeListFieldItem,    
     useKeywords,
     setUseKeywords,
     keywords,

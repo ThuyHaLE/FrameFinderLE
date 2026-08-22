@@ -1,17 +1,5 @@
 // sceneseek-frontend/src/config/queryTypes.js
 
-/**
- * Single source of truth for query types.
- *
- * Why this exists: in the old Jinja UI, "what fields to show" and
- * "what the query means" were implicit in the HTML template. Here,
- * every type is one config object — TypeSelector, SearchForm and the
- * API layer all read from this file instead of hardcoding type logic.
- *
- * To add a 4th query type later: add one entry below. No other file
- * needs to change.
- */
-
 export const QUERY_TYPES = {
   frame: {
     id: 1,
@@ -28,30 +16,33 @@ export const QUERY_TYPES = {
         type: "textarea",
       },
     ],
+    resultShape: "frame",
     supportsKeywords: true,
   },
 
   event_boundary: {
     id: 2,
     key: "event_boundary",
-    label: "Sự kiện (cảnh đầu – cảnh cuối)",
+    label: "Sự kiện (nhiều cảnh mốc)",
     shortLabel: "Type 2",
-    description: "Mô tả cảnh bắt đầu và cảnh kết thúc của một sự kiện.",
+    description: "Mô tả các cảnh mốc (keyframes) theo thứ tự thời gian của một sự kiện.",
     endpoint: "/api/search/event-boundary",
     fields: [
       {
-        name: "start_query",
-        label: "Cảnh bắt đầu",
-        placeholder: "VD: hai xe máy va chạm tại giao lộ",
-        type: "textarea",
-      },
-      {
-        name: "end_query",
-        label: "Cảnh kết thúc",
-        placeholder: "VD: cảnh sát giao thông có mặt tại hiện trường",
-        type: "textarea",
+        name: "queries",
+        type: "query_list",
+        min: 2,
+        max: 5,
+        default: 2,
+        itemLabel: (i, total) => {
+          if (i === 0) return "Cảnh bắt đầu";
+          if (i === total - 1) return "Cảnh kết thúc";
+          return `Cảnh mốc ${i + 1}`;
+        },
+        itemPlaceholder: "VD: hai xe máy va chạm tại giao lộ",
       },
     ],
+    resultShape: "cluster",
     supportsKeywords: true,
   },
 
@@ -70,6 +61,7 @@ export const QUERY_TYPES = {
         type: "textarea",
       },
     ],
+    resultShape: "cluster",
     supportsKeywords: true,
   },
 };
@@ -86,7 +78,19 @@ export function getQueryType(key) {
 export function emptyFieldValues(typeKey) {
   const type = getQueryType(typeKey);
   return type.fields.reduce((acc, f) => {
-    acc[f.name] = "";
+    if (f.type === "query_list") {
+      acc[f.name] = Array.from({ length: f.default ?? f.min ?? 2 }, () => "");
+    } else {
+      acc[f.name] = "";
+    }
     return acc;
   }, {});
+}
+
+export function canAddQueryItem(field, currentList) {
+  return currentList.length < (field.max ?? Infinity);
+}
+
+export function canRemoveQueryItem(field, currentList) {
+  return currentList.length > (field.min ?? 1);
 }

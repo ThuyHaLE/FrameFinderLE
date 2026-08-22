@@ -56,16 +56,21 @@ def search_event_boundary(
     info_dict: dict = Depends(get_hnsw_jinaclipv2_info_dict),
     video_index: dict = Depends(get_video_index),
 ):
-    """Type 2 — Event boundaries. Return frame clusters by video (not individual pairs)."""
-    start_results, end_results = search_hnsw_jinaclipv2_batch(
-        [req.start_query or "", req.end_query or ""],
+    
+    """Type 2 — Event boundaries. N ordered keyframe queries (2–5), clustered by video."""
+    queries = req.queries or []
+    if not (2 <= len(queries) <= 5):
+        raise HTTPException(status_code=422, detail="queries phải có từ 2 đến 5 phần tử")
+
+    channel_results = search_hnsw_jinaclipv2_batch(
+        [q or "" for q in queries],
         k=req.k,
         index=index,
         device=device,
         info_dict=info_dict,
     )
 
-    clusters = cluster_by_video(start_results, end_results, video_index)
+    clusters = cluster_by_video(channel_results, video_index)
 
     # displayOption is ignored here because the frontend is hard-coded to "sort_by_frame_index" for Type 2
     # — no need to handle displayOption here anymore:

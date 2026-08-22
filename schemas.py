@@ -17,9 +17,8 @@ from pydantic import BaseModel
 class SearchRequest(BaseModel):
     # Type 1 & 3
     query: Optional[str] = None
-    # Type 2
-    start_query: Optional[str] = None
-    end_query: Optional[str] = None
+    # Type 2 — N ordered scene queries (2–5)
+    queries: Optional[List[str]] = None
     # Options
     keywords: List[str] = []
     k: int = 100

@@ -601,3 +601,77 @@ body {
   color: var(--ss-text-primary, #333);
   white-space: nowrap; /* keep "start – end" together */
 }
+
+/* ---------- Query list field (Type 2 — N ordered scenes) ---------- */
+
+.ss-query-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.ss-query-list__item {
+  padding: 0.6rem;
+  background-color: var(--ss-panel-alt);
+  border: 1px solid var(--ss-border);
+  border-radius: var(--ss-radius);
+}
+
+.ss-query-list__item label {
+  display: block;
+  color: var(--ss-accent);
+  font-size: 0.85rem;
+  margin-bottom: 0.3rem;
+}
+
+.ss-query-list__row {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+}
+
+.ss-query-list__row textarea {
+  background-color: var(--ss-panel);
+  color: var(--ss-text);
+  border: 1px solid var(--ss-border);
+  border-radius: 6px;
+  padding: 0.5rem;
+  flex: 1;
+  font-family: inherit;
+}
+
+.ss-query-list__remove {
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: 1px solid var(--ss-border);
+  border-radius: 6px;
+  color: var(--ss-dislike);
+  cursor: pointer;
+  font-size: 0.9rem;
+  line-height: 1;
+}
+
+.ss-query-list__remove:hover {
+  border-color: var(--ss-dislike);
+  background-color: rgba(224, 82, 82, 0.08);
+}
+
+.ss-query-list__add {
+  align-self: flex-start;
+  background: transparent;
+  border: 1px solid var(--ss-accent);
+  color: var(--ss-accent);
+  border-radius: 6px;
+  padding: 0.4rem 0.9rem;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.ss-query-list__add:hover {
+  background-color: rgba(255, 204, 0, 0.08);
+}
