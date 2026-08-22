@@ -8,7 +8,7 @@ fastapi
 uvicorn
 pyngrok
 
-transformers==4.44.2
+transformers==4.48.0
 python-multipart
 faiss-cpu
 multiprocess
@@ -19,3 +19,4 @@ pydantic
 einops 
 timm 
 pillow
+jedi
