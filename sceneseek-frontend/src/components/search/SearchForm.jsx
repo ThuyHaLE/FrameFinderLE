@@ -105,6 +105,10 @@ export default function SearchForm() {
     updateListField,
     addListFieldItem,
     removeListFieldItem,
+    strict,              
+    setStrict,           
+    minOccurrences,       
+    setMinOccurrences,    
     runSearch,
     refreshKeywordSuggestions,
     loading,
@@ -113,6 +117,8 @@ export default function SearchForm() {
   } = useSearchContext();
 
   const isSimilarMode = viewMode === "similar";
+  const queryField = activeType.fields.find((f) => f.type === "query_list");
+  const queriesCount = queryField ? (fieldValues[queryField.name]?.length ?? 0) : 0;
 
   function handleSubmit(e) {
     e.preventDefault();
@@ -134,6 +140,39 @@ export default function SearchForm() {
             listActions={listActions}
           />
         ))}
+
+        {activeType.supportsApproximateMatch && queriesCount >= 3 && (
+          <div className="ss-form-group ss-approx-match">
+            <label className="ss-checkbox-label">
+              <input
+                type="checkbox"
+                checked={!strict}
+                onChange={(e) => {
+                  const nextStrict = !e.target.checked;
+                  setStrict(nextStrict);
+                  if (nextStrict) setMinOccurrences(null);
+                }}
+              />
+              Tìm tương đối (cho phép bỏ qua một vài cảnh)
+            </label>
+
+            {!strict && (
+              <select
+                value={minOccurrences ?? Math.max(2, queriesCount - 1)}
+                onChange={(e) => setMinOccurrences(Number(e.target.value))}
+              >
+                {Array.from(
+                  { length: Math.max(0, queriesCount - 1 - 2 + 1) },
+                  (_, i) => 2 + i
+                ).map((n) => (
+                  <option key={n} value={n}>
+                    Khớp tối thiểu {n}/{queriesCount} cảnh
+                  </option>
+                ))}
+              </select>
+            )}
+          </div>
+        )}
 
         {activeType.supportsKeywords && <KeywordChips />}
 

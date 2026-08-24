@@ -59,9 +59,24 @@ def search_event_boundary(
     
     """Type 2 — Event boundaries. N ordered keyframe queries (2–5), clustered by video."""
     queries = req.queries or []
-    if not (2 <= len(queries) <= 5):
+    n = len(queries)
+    if not (2 <= n <= 5):
         raise HTTPException(status_code=422, detail="queries phải có từ 2 đến 5 phần tử")
 
+    if not req.strict:
+        if n < 3:
+            # N=2: "tìm tương đối" vô nghĩa vì N-1=1 < min hợp lệ (2) — chặn sớm thay vì
+            # để cluster_by_video âm thầm hạ effective_min_occurrences xuống giá trị lạ
+            raise HTTPException(
+                status_code=422,
+                detail="Tìm tương đối yêu cầu ít nhất 3 cảnh (để có thể bỏ qua 1 cảnh)",
+            )
+        if req.minOccurrences is not None and not (2 <= req.minOccurrences <= n - 1):
+            raise HTTPException(
+                status_code=422,
+                detail=f"minOccurrences phải từ 2 đến {n - 1}",
+            )
+        
     channel_results = search_hnsw_jinaclipv2_batch(
         [q or "" for q in queries],
         k=req.k,
@@ -70,7 +85,12 @@ def search_event_boundary(
         info_dict=info_dict,
     )
 
-    clusters = cluster_by_video(channel_results, video_index)
+    clusters = cluster_by_video(
+        channel_results,
+        video_index,
+        min_occurrences=req.minOccurrences,
+        strict=req.strict,
+    )
 
     # displayOption is ignored here because the frontend is hard-coded to "sort_by_frame_index" for Type 2
     # — no need to handle displayOption here anymore:

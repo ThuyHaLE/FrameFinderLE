@@ -125,7 +125,8 @@ function mockClusterResponse(page, imagesPerPage, shuffle = false) {
  */
 export async function searchByType(typeKey, fieldValues, opts) {
   const { page = 1, imagesPerPage = 50, keywords = [], k = 100,
-          displayOption = "sort_by_frame_index", sessionId } = opts;
+          displayOption = "sort_by_frame_index", sessionId,
+          strict = true, minOccurrences = null } = opts;
 
   const type = getQueryType(typeKey);
 
@@ -140,6 +141,8 @@ export async function searchByType(typeKey, fieldValues, opts) {
         page,
         imagesPerPage,
         sessionId,
+        strict, 
+        minOccurrences,
       }),
     })
   );
@@ -157,7 +160,8 @@ export async function searchByType(typeKey, fieldValues, opts) {
  */
 export async function refineResults(typeKey, fieldValues, opts) {
   const { page = 1, imagesPerPage = 50, keywords = [], k = 100,
-          displayOption, sessionId } = opts;
+          displayOption, sessionId,
+          strict = true, minOccurrences = null } = opts;
 
   const type = getQueryType(typeKey);
 
@@ -172,6 +176,8 @@ export async function refineResults(typeKey, fieldValues, opts) {
         page,
         imagesPerPage,
         sessionId,
+        strict, 
+        minOccurrences,
       }),
     })
   );

@@ -27,6 +27,8 @@ export default function ResultsGrid() {
     similarTotalPages,
     changeSimilarPage,
     imagesPerPage,
+    activeType,
+    fieldValues,
   } = useSearchContext();
 
   if (viewMode === "similar") {
@@ -82,6 +84,27 @@ export default function ResultsGrid() {
     // renders as one header with all its events underneath, instead of
     // duplicate video headers / duplicate React keys.
     const groups = groupClustersByVideo(results);
+    const queryField = activeType.fields.find((f) => f.type === "query_list");
+    const totalChannels = queryField ? (fieldValues[queryField.name]?.length ?? 0) : 0;
+
+    function getMatchedChannelsLabel(cluster) {
+      if (!queryField || !Array.isArray(cluster.matched_channels)) return null;
+      const labels = cluster.matched_channels.map((idx) =>
+        queryField.itemLabel(idx, totalChannels)
+      );
+      return `Khớp với: ${labels.join(", ")}`;
+    }
+
+    function getMissingChannelsLabel(cluster) {
+      if (!queryField || !Array.isArray(cluster.missing_channels) || cluster.missing_channels.length === 0) {
+        return null;
+      }
+      const labels = cluster.missing_channels.map((m) =>
+        queryField.itemLabel(m.channel, totalChannels)
+      );
+      return `(thiếu: ${labels.join(", ")})`;
+    }
+        
     return (
       <div className="ss-results">
         <p className="ss-results-total">Tổng số cụm cảnh: {totalImages}</p>
@@ -92,6 +115,8 @@ export default function ResultsGrid() {
               videoId={g.video_id}
               events={g.events}
               onSearchSimilar={openSimilar}
+              getMatchedChannelsLabel={getMatchedChannelsLabel} 
+              getMissingChannelsLabel={getMissingChannelsLabel}
             />
           ))}
         </div>

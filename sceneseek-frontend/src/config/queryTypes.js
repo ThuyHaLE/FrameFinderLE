@@ -44,6 +44,7 @@ export const QUERY_TYPES = {
     ],
     resultShape: "cluster",
     supportsKeywords: true,
+    supportsApproximateMatch: true,
   },
 
   event_mention: {

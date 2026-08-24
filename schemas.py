@@ -10,15 +10,15 @@ Separated from app.py and individual routers to:
 """
 
 from typing import List, Optional
-
 from pydantic import BaseModel
-
 
 class SearchRequest(BaseModel):
     # Type 1 & 3
     query: Optional[str] = None
     # Type 2 — N ordered scene queries (2–5)
     queries: Optional[List[str]] = None
+    strict: bool = True
+    minOccurrences: Optional[int] = None
     # Options
     keywords: List[str] = []
     k: int = 100

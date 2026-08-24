@@ -675,3 +675,9 @@ body {
 .ss-query-list__add:hover {
   background-color: rgba(255, 204, 0, 0.08);
 }
+
+.ss-cluster-item__matched {
+  margin: 0 0 6px;
+  font-size: 0.8rem;
+  color: var(--ss-text-muted);
+}

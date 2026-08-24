@@ -202,71 +202,182 @@ def sort_results(results: list, display_option: str) -> list:
     return results
 
 
-def cluster_by_video(channel_results: List[list], video_index: dict, 
-                     min_occurrences: int = 2) -> list:
+def _best_ordered_chain(items: list) -> Optional[list]:
     """
-    Generalized version of the old start/end clustering — supports N ordered
-    keyframe queries (channel 0 = earliest scene ... channel N-1 = latest scene)
-    instead of just start/end.
+    items: all candidate matches (from any channel) belonging to ONE video.
+    Finds the chain of items, ordered by frame_idx ascending, whose channel
+    indices are STRICTLY increasing (so each channel appears at most once,
+    and later channels correspond to later timestamps) — optimizing:
+        1) most distinct channels covered (primary)
+        2) lowest total distance (tie-break)
+    O(m^2) time, O(m) extra memory (parent-pointer DP, chain built once at the end).
+    Returns None if items is empty.
+    """
+    if not items:
+        return None
+
+    items_sorted = sorted(items, key=lambda r: r["frame_idx"])
+    n = len(items_sorted)
+
+    dp_channels = [1] * n
+    dp_dist = [items_sorted[i]["distance"] for i in range(n)]
+    parent = [-1] * n
+
+    for i in range(n):
+        ci = items_sorted[i]["_channel"]
+        for j in range(i):
+            cj = items_sorted[j]["_channel"]
+            if cj >= ci:
+                continue  # channel must strictly increase with time;
+                          # transitivity guarantees no duplicate channel in chain
+            cand_channels = dp_channels[j] + 1
+            cand_dist = dp_dist[j] + items_sorted[i]["distance"]
+            if (cand_channels, -cand_dist) > (dp_channels[i], -dp_dist[i]):
+                dp_channels[i] = cand_channels
+                dp_dist[i] = cand_dist
+                parent[i] = j
+
+    best_i = max(range(n), key=lambda i: (dp_channels[i], -dp_dist[i]))
+
+    chain = []
+    i = best_i
+    while i != -1:
+        chain.append(items_sorted[i])
+        i = parent[i]
+    chain.reverse()
+    return chain
+
+
+def cluster_by_video(
+    channel_results: List[list],
+    video_index: dict,
+    min_occurrences: Optional[int] = None,
+    strict: bool = True,
+    ) -> list:
+    """
+    Cluster search results by video, finding an ordered sequence of matched
+    frames — one per query "scene" (channel) — that appears in the correct
+    chronological order within the video (channel 0 = earliest scene,
+    channel N-1 = latest scene).
 
     channel_results: list of result-lists, in the SAME order the user entered
         the scenes (e.g. [results_for_cảnh_1, results_for_cảnh_2, results_for_cảnh_3]).
-        Each results-list is the output of one query from search_hnsw_jinaclipv2_batch.
+        Each results-list is the output of one query from
+        search_hnsw_jinaclipv2_batch.
+    video_index: video_ID -> list of all real frames of that video
+        (each frame dict has at least "frame_idx").
+    min_occurrences: minimum number of DISTINCT channels that must be matched,
+        in correct order, for a video to be considered a valid cluster.
+        - Ignored if strict=True (forced to len(channel_results), i.e. every
+          scene must match, in order).
+        - If strict=False and not given, defaults to max(2, N-1) — i.e.
+          allow at most 1 missing scene (to tolerate imperfect encoding/search).
+    strict: True = require ALL scenes to match in order ("tìm chính xác").
+            False = allow some scenes to be missing ("tìm tương đối"),
+            governed by min_occurrences.
 
-    Steps (same logic as before, just N-way instead of 2-way):
-      1. Pool all channels together, tag each item with its channel index.
-      2. video_ID appearing < min_occurrences times in the pool → discard.
-      3. Use MIN/MAX frame_idx across the WHOLE pool (not per-channel) as the
-         cluster boundary — same as the old start/end behavior. This does not
-         enforce that channel i's frame_idx < channel i+1's frame_idx; it just
-         defines the visible range. (See note below if strict ordering is needed.)
-      4. Retrieve all real frames within [min, max] from video_index.
-      5. Score = sum of best (min) distance per channel that has >=1 hit in
-         this video (channels with 0 hits contribute 0 — same fallback as before).
+    Returns a list of clusters sorted by:
+        1) number of matched channels, descending (more complete match first)
+        2) score (sum of distances in the winning chain), ascending (closer match first)
+    Each cluster:
+        {
+            "video_id": ...,
+            "score": ...,
+            "frame_count": ...,
+            "frames": [...],                # all real frames within [start, end]
+            "matched_channels": [...],      # sorted list of channel indices matched
+            "missing_channels": [           # detail on unmatched channels
+                {
+                    "channel": <int>,
+                    "reason": "no_match_in_video" | "excluded_by_ordering",
+                    # only present for "excluded_by_ordering":
+                    "best_candidate_frame_idx": <int>,
+                    "best_candidate_distance": <float>,
+                },
+                ...
+            ],
+        }
     """
     if not channel_results:
         return []
 
-    pool = []
-    for channel_idx, results in enumerate(channel_results):
-        pool.extend(dict(r, _channel=channel_idx) for r in results)
+    n_channels = len(channel_results)
 
-    by_video = {}
-    for r in pool:
-        by_video.setdefault(r["video_ID"], []).append(r)
+    if strict:
+        effective_min_occurrences = n_channels
+    else:
+        effective_min_occurrences = (
+            min_occurrences if min_occurrences is not None
+            else max(2, n_channels - 1)
+        )
+        effective_min_occurrences = min(effective_min_occurrences, n_channels)
+
+    # 1. Pool all channels together, tag each item with its channel index,
+    #    and group by video in the same pass.
+    by_video: dict = {}
+    for channel_idx, results in enumerate(channel_results):
+        for r in results:
+            item = dict(r, _channel=channel_idx)
+            by_video.setdefault(item["video_ID"], []).append(item)
 
     clusters = []
     for video_ID, items in by_video.items():
-        if len(items) < min_occurrences:
-            continue  # not enough hits to identify a real segment
+        chain = _best_ordered_chain(items)
+        if chain is None:
+            continue
 
-        start_item = min(items, key=lambda r: r["frame_idx"])
-        end_item = max(items, key=lambda r: r["frame_idx"])
-        if start_item["frame_idx"] == end_item["frame_idx"]:
+        chain_channels = {r["_channel"] for r in chain}
+        if len(chain_channels) < effective_min_occurrences:
+            continue
+
+        start_idx = chain[0]["frame_idx"]
+        end_idx = chain[-1]["frame_idx"]
+        if start_idx == end_idx:
             continue  # min == max, not enough to create a real segment
 
         video_frames = video_index.get(video_ID, [])
         frames_in_range = sorted(
-            (f for f in video_frames
-             if start_item["frame_idx"] <= f["frame_idx"] <= end_item["frame_idx"]),
+            (f for f in video_frames if start_idx <= f["frame_idx"] <= end_idx),
             key=lambda f: f["frame_idx"],
         )
         if not frames_in_range:
             continue
 
-        score = 0.0
-        for channel_idx in range(len(channel_results)):
-            channel_scores = [r["distance"] for r in items if r["_channel"] == channel_idx]
-            score += min(channel_scores) if channel_scores else 0.0
+        # 2. Build missing-channel detail for debugging / UI display.
+        items_by_channel: dict = {}
+        for r in items:
+            items_by_channel.setdefault(r["_channel"], []).append(r)
 
+        missing_detail = []
+        for ch in range(n_channels):
+            if ch in chain_channels:
+                continue
+            candidates = items_by_channel.get(ch, [])
+            if not candidates:
+                missing_detail.append({
+                    "channel": ch,
+                    "reason": "no_match_in_video",
+                })
+            else:
+                best_excluded = min(candidates, key=lambda r: r["distance"])
+                missing_detail.append({
+                    "channel": ch,
+                    "reason": "excluded_by_ordering",
+                    "best_candidate_frame_idx": best_excluded["frame_idx"],
+                    "best_candidate_distance": best_excluded["distance"],
+                })
+
+        score = sum(r["distance"] for r in chain)
         clusters.append({
             "video_id": video_ID,
             "score": score,
             "frame_count": len(frames_in_range),
             "frames": frames_in_range,
+            "matched_channels": sorted(chain_channels),
+            "missing_channels": missing_detail,
         })
 
-    clusters.sort(key=lambda c: c["score"])
+    clusters.sort(key=lambda c: (-len(c["matched_channels"]), c["score"]))
     return clusters
 
 

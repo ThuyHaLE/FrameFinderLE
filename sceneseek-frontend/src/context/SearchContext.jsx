@@ -29,6 +29,8 @@ export function SearchProvider({ children }) {
 
   const [k, setK] = useState(100);
   const [displayOption, setDisplayOption] = useState("sort_by_frame_index");
+  const [strict, setStrict] = useState(true);
+  const [minOccurrences, setMinOccurrences] = useState(null);
   const [imagesPerPage, setImagesPerPage] = useState(50);
 
   const [page, setPage] = useState(1);
@@ -115,6 +117,8 @@ export function SearchProvider({ children }) {
     setActiveTypeKey(typeKey);
     setFieldValues(emptyFieldValues(typeKey));
     setKeywords([]);
+    setStrict(true);          
+    setMinOccurrences(null);  
   }, []);
 
   const updateField = useCallback((name, value) => {
@@ -142,7 +146,22 @@ export function SearchProvider({ children }) {
     setFieldValues((prev) => {
       const list = prev[name] ?? [];
       if (list.length <= min) return prev;
-      return { ...prev, [name]: list.filter((_, i) => i !== index) };
+      const nextList = list.filter((_, i) => i !== index);
+
+      // Clamp strict/minOccurrences khi số cảnh giảm xuống < 3
+      // (tránh gửi combo invalid lên backend, khiến event-boundary trả 422
+      //  và client.js âm thầm fallback sang mock)
+      const n = nextList.length;
+      if (n < 3) {
+        setStrict(true);
+        setMinOccurrences(null);
+      } else {
+        setMinOccurrences((prevMin) =>
+          prevMin != null && (prevMin < 2 || prevMin > n - 1) ? null : prevMin
+        );
+      }
+
+      return { ...prev, [name]: nextList };
     });
   }, []);
 
@@ -187,12 +206,9 @@ export function SearchProvider({ children }) {
     }
     try {
       const res = await searchByType(activeTypeKey, fieldValues, {
-        keywords,
-        k,
-        displayOption,
-        page: nextPage,
-        imagesPerPage,
+        keywords, k, displayOption, page: nextPage, imagesPerPage,
         sessionId: newSession,
+        strict, minOccurrences,
       });
       setResults(res.results);
       setTotalImages(res.totalImages);
@@ -217,6 +233,7 @@ export function SearchProvider({ children }) {
         page: nextPage,
         imagesPerPage,
         sessionId,
+        strict, minOccurrences,          
       });
       setResults(res.results);
       setTotalImages(res.totalImages);
@@ -227,7 +244,7 @@ export function SearchProvider({ children }) {
     } finally {
       setLoading(false);
     }
-  }, [activeTypeKey, fieldValues, keywords, k, displayOption, imagesPerPage, sessionId, feedbackMap]);
+  }, [activeTypeKey, fieldValues, keywords, k, displayOption, imagesPerPage, sessionId, feedbackMap, strict, minOccurrences]);
 
   const setFeedback = useCallback(async (dbIdx, action) => {
     setFeedbackMap((prev) => ({ ...prev, [dbIdx]: action }));
@@ -251,6 +268,7 @@ export function SearchProvider({ children }) {
         page: 1,
         imagesPerPage,
         sessionId,
+        strict, minOccurrences,          // [THIẾU]
       });
       setResults(res.results);
       setTotalImages(res.totalImages);
@@ -261,7 +279,7 @@ export function SearchProvider({ children }) {
     } finally {
       setLoading(false);
     }
-  }, [activeTypeKey, fieldValues, keywords, k, displayOption, imagesPerPage, sessionId]);
+  }, [activeTypeKey, fieldValues, keywords, k, displayOption, imagesPerPage, sessionId, strict, minOccurrences]);
 
   const value = {
     activeTypeKey,
@@ -271,7 +289,9 @@ export function SearchProvider({ children }) {
     updateField,
     updateListField,        
     addListFieldItem,       
-    removeListFieldItem,    
+    removeListFieldItem,
+    strict, setStrict,
+    minOccurrences, setMinOccurrences,    
     useKeywords,
     setUseKeywords,
     keywords,
