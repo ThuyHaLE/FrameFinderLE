@@ -101,3 +101,18 @@ def get_flatip_dangvantuan_info_dict():
 
 def get_frame_path_to_row():
     return model_state.FRAME_PATH_TO_ROW
+
+
+def get_bm25_flatip_dangvantuan_index():
+    return model_state.FLATIP_DANGVANTUAN.index
+
+
+def get_bm25_flatip_dangvantuan_info_dict():
+    return model_state.FLATIP_DANGVANTUAN.info_dict
+
+
+def get_bm25():
+    return model_state.BM25
+
+def get_bm25_chunks():
+    return model_state.BM25_CHUNKS

@@ -17,7 +17,7 @@ export const QUERY_TYPES = {
       },
     ],
     resultShape: "frame",
-    supportsKeywords: true,
+    supportsKeywords: false,
   },
 
   event_boundary: {
@@ -43,7 +43,7 @@ export const QUERY_TYPES = {
       },
     ],
     resultShape: "cluster",
-    supportsKeywords: true,
+    supportsKeywords: false,
     supportsApproximateMatch: true,
   },
 

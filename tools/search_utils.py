@@ -27,6 +27,8 @@ from tools.faiss_retrieval import k_image_search
 from tools.query_encoding import encode_texts
 from utils import build_thumbnail_url
 import math
+from pyvi import ViTokenizer, ViPosTagger
+import numpy as np
 
 """
 Lookup frame_path -> db_idx, build 1 time when module is imported.
@@ -445,11 +447,181 @@ def search_flatip_dangvantuan_batch(
                     "start": info["start"],
                     "end": info["end"],
                     "text": info["text"],
-                    "frames": [kf["frame_path"] for kf in info["keyframes"]],
+                    "frames": [kf["frame_path"] for kf in info.get("keyframes", [])],
                     "score": float(distance),
                 }
 
         query_results = sorted(seen.values(), key=lambda x: -x["score"])[:k]
         all_results.append(query_results)
 
+    return all_results
+
+
+def bm25_search_batch(
+        queries: List[str],
+        k: int = 25,
+        bm25=None,
+        chunks: Optional[list] = None,) -> List[List[dict]]:
+    """
+    Find top-k deduplicated chunks for multiple queries at once using BM25.
+ 
+    :param queries: list of query strings
+    :param k: number of deduplicated results to return for EACH query
+    :param bm25: BM25 object (from rank_bm25); defaults to model_state.BM25
+    :param chunks: list of chunk dicts corresponding to the BM25 index;
+                   defaults to model_state.BM25_CHUNKS
+    :return: list[list[dict]] — for each query, chunks are deduplicated by
+             (video_id, event_id) (keeping the highest-scoring chunk per event,
+             since a single event may be split into multiple chunks) and sorted by score descending. 
+             Chunks with a non-positive score (no keyword match) are dropped. 
+             Returns [] for a query if no chunks score > 0 or if there are no chunks to search.
+    """
+
+    if not queries:
+        return []
+    
+    bm25 = bm25 if bm25 is not None else model_state.BM25
+    chunks = chunks if chunks is not None else model_state.BM25_CHUNKS
+    
+    all_results = []
+ 
+    for query in queries:
+        # Preprocessing: must stay consistent with the preprocessing used
+        # when building the BM25 index.
+        tokens = ViTokenizer.tokenize(query).lower().split()
+        scores = bm25.get_scores(tokens)
+ 
+        # If k is larger than the number of available chunks, cap it.
+        # Also guards against argpartition failing on an empty array.
+        actual_k = min(k, len(scores))
+        if actual_k == 0:
+            all_results.append([])
+            continue
+ 
+        # 1. Use argpartition to quickly get the top actual_k indices
+        #    (no need to fully sort every score).
+        top_indices = np.argpartition(scores, -actual_k)[-actual_k:]
+        # 2. Sort just those top indices by score, descending.
+        top_indices = top_indices[np.argsort(scores[top_indices])[::-1]]
+ 
+        # dedupe by (video_id, event_id), keep highest score — mirrors the
+        # dense-search dedup so both branches feed rrf_merge consistently
+        seen = {}
+        for idx in top_indices:
+            score = float(scores[idx])
+            # Ignore results with non-positive scores (no keyword match)
+            if score <= 0:
+                continue
+ 
+            c = chunks[idx]
+            key = (c["video_id"], c["event_id"])
+ 
+            if key not in seen or score > seen[key]["score"]:
+                seen[key] = {
+                    "video_id": c["video_id"],
+                    "event_id": c["event_id"],
+                    "group": c["group"],
+                    "start": c["start"],
+                    "end": c["end"],
+                    "text": c["text"],
+                    "frames": [kf["frame_path"] for kf in c.get("keyframes", [])],
+                    "score": score,
+                }
+ 
+        query_results = sorted(seen.values(), key=lambda x: -x["score"])
+        all_results.append(query_results)
+ 
+    return all_results
+ 
+ 
+def rrf_merge(
+        vector_results: list,
+        keyword_results: list,
+        k_const: int = 60,
+        top_k: int = 5,) -> list:
+    """
+    Merge two sorted lists of results (vector and keyword) using Reciprocal
+    Rank Fusion (RRF), deduplicating by (video_id, event_id).
+ 
+    :param vector_results: list of dicts from search_flatip_dangvantuan_batch(), sorted by score descending
+    :param keyword_results: list of dicts from bm25_search_batch(), sorted by score descending
+    :param k_const: RRF constant (commonly 60, standard in literature; has little effect on final results if changed slightly)
+    :param top_k: number of final results to return after merging
+    :return: List[dict] merged and sorted by rrf_score descending, each dict
+             retains the payload of the first occurrence (priority to
+             vector_results if key overlaps) + adds field 'rrf_score'
+    """
+    rrf_scores = {}
+    payload_by_key = {}
+ 
+    for rank, item in enumerate(vector_results, start=1):
+        key = (item["video_id"], item["event_id"])
+        rrf_scores[key] = rrf_scores.get(key, 0.0) + 1.0 / (k_const + rank)
+        payload_by_key.setdefault(key, item)
+ 
+    for rank, item in enumerate(keyword_results, start=1):
+        key = (item["video_id"], item["event_id"])
+        rrf_scores[key] = rrf_scores.get(key, 0.0) + 1.0 / (k_const + rank)
+        payload_by_key.setdefault(key, item)
+ 
+    ranked_keys = sorted(rrf_scores.items(), key=lambda x: -x[1])[:top_k]
+    return [{**payload_by_key[key], "rrf_score": score} for key, score in ranked_keys]
+
+
+def search_hybrid_bm25_flatip_batch(
+        queries: list,
+        expanded_queries_for_bm25: list,
+        k: int = 5,
+        fetch_multiplier: int = 5,
+        device=None,
+        index=None,
+        info_dict: Optional[dict] = None,
+        bm25=None,
+        bm25_chunks=None,) -> list:
+    """
+    Hybrid search KHONG query expansion: dense (FAISS) + keyword (BM25) tren
+    dung query goc, merge bang RRF.
+ 
+    :param queries: list of query strings
+    :param expanded_queries_for_bm25: list of expanded query strings for BM25
+    :param k: number of final merged results to return for EACH query
+    :param fetch_multiplier: multiplier used to over-fetch candidates from
+                             both the dense and keyword branches before RRF merging
+    :param device: defaults to model_state.DEVICE
+    :param index: FAISS index; defaults to model_state.FLATIP_DANGVANTUAN.index
+    :param info_dict: defaults to model_state.FLATIP_DANGVANTUAN.info_dict
+    :param bm25: BM25 object (from rank_bm25); defaults to model_state.BM25
+    :param bm25_chunks: defaults to model_state.BM25_CHUNKS
+    :return: list[list[dict]] — merged, RRF-sorted results for each query
+    """
+    if not queries:
+        return []
+    
+    index = index if index is not None else model_state.BM25_FLATIP_DANGVANTUAN.index
+    device = device if device is not None else model_state.DEVICE
+    info_dict = (
+        info_dict if info_dict is not None else model_state.BM25_FLATIP_DANGVANTUAN.info_dict
+    )
+    
+    vector_batch = search_flatip_dangvantuan_batch(
+        queries,
+        k=k * fetch_multiplier,
+        fetch_multiplier=1,
+        index=index,
+        device=device,
+        info_dict=info_dict,
+    )
+ 
+    keyword_batch = bm25_search_batch(
+        expanded_queries_for_bm25,
+        bm25=bm25,
+        chunks=bm25_chunks,
+        k=k * fetch_multiplier,
+    )
+ 
+    all_results = []
+    for v_results, kw_results in zip(vector_batch, keyword_batch):
+        merged = rrf_merge(v_results, kw_results, top_k=k)
+        all_results.append(merged)
+ 
     return all_results

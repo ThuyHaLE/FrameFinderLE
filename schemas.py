@@ -36,3 +36,6 @@ class FeedbackRequest(BaseModel):
 
 class ProcessQueryRequest(BaseModel):
     query_text: str
+
+class ProcessQueryResponse(BaseModel):
+    keywords: List[str]
