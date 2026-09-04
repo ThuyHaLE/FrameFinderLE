@@ -19,9 +19,12 @@ import state
 
 from models.model_init import load_model
 from database.db_init import (
+    load_bm25_flatip_dangvantuan,
     load_jinaclipv2_encoded_frames,
     faiss_database_processing,
-    load_event_transcripts
+    load_event_transcripts,
+    load_keywords_resources,
+    load_bm25_database
 )
 
 logging.basicConfig(level=logging.INFO)
@@ -49,6 +52,12 @@ if _DANGVANTUAN_DEVICE != DEVICE:
 logger.info("Loading jinaclipv2 encoded frames...")
 JINACLIPV2_ENCODED_FRAMES = load_jinaclipv2_encoded_frames(DEVICE, database_name='jinaclipv2_encoded_frames')
 
+logger.info("Loading keywords resources...")
+KEYWORDS_RESOURCES = load_keywords_resources(database_name='bm25_flatip_dangvantuan')
+
+logger.info("Loading bm25 database...")
+BM25, BM25_CHUNKS = load_bm25_database(database_name='bm25_flatip_dangvantuan')
+
 logger.info("Loading all event transcripts...")
 EVENT_TRANSCRIPTS = load_event_transcripts(database_name='all_event_transcripts')
 
@@ -59,6 +68,10 @@ HNSW_JINACLIPV2 = VectorDB(index=_hnsw_index, info_dict=_hnsw_info_dict)
 logger.info("Loading flatip_dangvantuan index...")
 _flatip_index, _flatip_info_dict = faiss_database_processing("flatip_dangvantuan")
 FLATIP_DANGVANTUAN = VectorDB(index=_flatip_index, info_dict=_flatip_info_dict)
+
+logger.info("Loading bm25_flatip_dangvantuan index...")
+_bm25_flatip_index, _bm25_flatip_info_dict = load_bm25_flatip_dangvantuan(database_name='bm25_flatip_dangvantuan')
+BM25_FLATIP_DANGVANTUAN = VectorDB(index=_bm25_flatip_index, info_dict=_bm25_flatip_info_dict)
 
 logger.info("All model state loaded successfully.")
 

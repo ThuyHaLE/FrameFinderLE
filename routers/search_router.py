@@ -14,12 +14,16 @@ from deps import (
     get_device, get_jinaclipv2_model, get_jinaclipv2_encoded_frames,
     get_hnsw_jinaclipv2_index, get_hnsw_jinaclipv2_info_dict,
     get_flatip_dangvantuan_index, get_flatip_dangvantuan_info_dict,
-    get_video_index, get_frame_by_id, get_frame_by_path, get_frame_path_to_row
+    get_bm25_flatip_dangvantuan_index, get_bm25_flatip_dangvantuan_info_dict,
+    get_bm25, get_bm25_chunks,
+    get_video_index, get_frame_by_id, 
+    get_frame_by_path, get_frame_path_to_row
     )
 from schemas import SearchRequest
 from tools.search_utils import (
     search_hnsw_jinaclipv2_batch, search_flatip_dangvantuan_batch,
-    normalize_frame, sort_results, to_response, cluster_by_video
+    search_hybrid_bm25_flatip_batch, normalize_frame, sort_results, 
+    to_response, cluster_by_video
     )
 from tools.search_similar import search_similar
 from utils import paginate
@@ -157,8 +161,12 @@ def get_similar_frames(
 def search_event_mention(
     req: SearchRequest,
     device=Depends(get_device),
-    index=Depends(get_flatip_dangvantuan_index),
-    info_dict: dict = Depends(get_flatip_dangvantuan_info_dict),
+    flatip_dangvantuan_index=Depends(get_flatip_dangvantuan_index),
+    flatip_dangvantuan_info_dict: dict = Depends(get_flatip_dangvantuan_info_dict),
+    bm25_flatip_dangvantuan_index=Depends(get_bm25_flatip_dangvantuan_index),
+    bm25_flatip_dangvantuan_info_dict: dict = Depends(get_bm25_flatip_dangvantuan_info_dict),
+    bm25=Depends(get_bm25),
+    bm25_chunks=Depends(get_bm25_chunks),
     frame_by_path: dict = Depends(get_frame_by_path),
 ):
     """
@@ -170,11 +178,34 @@ def search_event_mention(
     makes sense the same way it does for Type 1's text-image search). Revisit
     if Type 3 search quality needs tuning.
     """
-    events = search_flatip_dangvantuan_batch(
-        [req.query or ""], k=req.k,
-        index=index, device=device, info_dict=info_dict,
-    )[0]
- 
+
+    queries = [req.query or ""]
+    keywords = req.keywords or None
+
+    if not keywords:
+        events = search_flatip_dangvantuan_batch(
+            queries, k=req.k,
+            index=flatip_dangvantuan_index, 
+            device=device, 
+            info_dict=flatip_dangvantuan_info_dict,
+        )[0]
+
+    elif keywords:
+        expanded_queries_for_bm25 = []
+        for query in queries:
+            expanded_queries_for_bm25.append(f"{query} {' '.join(dict.fromkeys(keywords))}".strip())
+
+        events = search_hybrid_bm25_flatip_batch(
+            queries=queries, 
+            expanded_queries_for_bm25=expanded_queries_for_bm25,
+            k=req.k, 
+            fetch_multiplier=5,
+            device=device, 
+            index=bm25_flatip_dangvantuan_index, 
+            info_dict=bm25_flatip_dangvantuan_info_dict,
+            bm25=bm25, 
+            bm25_chunks=bm25_chunks)[0]
+
     # Join frame_path (string) -> full frame dict (db_idx, thumbnail, timestamp_sec...)
     # so GalleryItem.jsx / the cluster UI gets the same shape it already expects
     # from Type 2 clusters (frame_by_path already used the same way in /similar above).

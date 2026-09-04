@@ -9,17 +9,13 @@ from fastapi import APIRouter
 
 from common import NOT_IMPLEMENTED
 from schemas import ProcessQueryRequest
+from tools.keywords_utils import get_keywords
 
 router = APIRouter(prefix="/api", tags=["query"])
 
-
 @router.post("/process_query")
 def process_query(req: ProcessQueryRequest):
-    """
-    Trả keyword gợi ý từ keyword graph.
-    """
-    # TODO:
-    # 1. word-segment req.query_text bằng underthesea/pyvi
-    # 2. chuẩn hoá Unicode NFC
-    # 3. graph expansion → trả top keywords
-    raise NOT_IMPLEMENTED
+    """Return suggested keywords from the keyword graph."""
+    keywords = get_keywords(req.query_text) 
+    return {"keywords": keywords}
+    #raise NOT_IMPLEMENTED
