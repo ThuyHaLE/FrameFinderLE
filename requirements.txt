@@ -20,3 +20,6 @@ einops
 timm 
 pillow
 jedi
+
+rank_bm25
+pyvi
