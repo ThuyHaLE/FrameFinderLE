@@ -99,6 +99,7 @@ export default function DataPage() {
   const [totalPages, setTotalPages] = useState(1);
   const [keyframes,  setKeyframes]  = useState([]);
   const [loading,    setLoading]    = useState(false);
+  const [loadError,  setLoadError]  = useState(null); 
 
   // Bump to force VideoIDSelector remount (reset its internal lPart/vPart) when clearing filter —
   // because that component only reads videoId prop on mount, doesn't auto-sync when prop changes.
@@ -170,9 +171,10 @@ export default function DataPage() {
       videoId: videoId,
       tsStart: tsStart,
       tsEnd: tsEnd,
-      ...overrides, // allow to call with new values immediately, avoid stale closure from state not updated yet
+      ...overrides,
     };
     setLoading(true);
+    setLoadError(null);
     try {
       const res = await fetchKeyframes({
         page: targetPage,
@@ -184,12 +186,12 @@ export default function DataPage() {
       setKeyframes(res.keyframes);
       setTotalPages(res.totalPages);
       setPage(res.page ?? targetPage);
+    } catch (e) {
+      setLoadError("Không thể tải dữ liệu. Vui lòng thử lại.");
     } finally {
       setLoading(false);
     }
   }, [videoId, tsStart, tsEnd]);
-
-  useEffect(() => { load(1); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // -------------------------------------------------------------------------
   // Handlers
@@ -255,6 +257,7 @@ export default function DataPage() {
         </p>
 
         {filterError && <p className="ss-form-error">{filterError}</p>}
+        {loadError && <p className="ss-form-error">{loadError}</p>} 
 
         <div className="ss-form-actions">
           <button type="submit" className="ss-btn ss-btn--primary" disabled={loading}>

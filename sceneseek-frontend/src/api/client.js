@@ -28,22 +28,26 @@ async function request(path, options = {}) {
     ...options,
   });
   if (!res.ok) {
-    // 501 = not implemented, 4xx/5xx others = real error
-    throw new Error(`API ${res.status}: ${path}`);
+    const err = new Error(`API ${res.status}: ${path}`);
+    err.status = res.status;
+    throw err;
   }
   return res.json();
 }
 
 /**
- * Try calling the real backend. If it fails for any reason
- * (network, 501, 4xx, 5xx) → return null to let the caller fallback to mock.
+ * Try calling the real backend.
+ * - 501 (not implemented) or network error → return null (caller falls back to mock).
+ * - Any other error (4xx/5xx, JSON parse error...) → re-thrown, caller must catch and show a real error.
  */
 async function tryReal(fn) {
   try {
     const result = await fn();
     return result ?? null;
-  } catch {
-    return null;
+  } catch (e) {
+    if (e.status === 501) return null;
+    if (e instanceof TypeError) return null;
+    throw e;
   }
 }
 

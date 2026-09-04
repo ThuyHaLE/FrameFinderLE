@@ -189,6 +189,7 @@ export default function EventPage() {
   const [totalPages, setTotalPages] = useState(1);
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [loadError, setLoadError] = useState(null);
 
   // Bump to force VideoIDSelector remount (reset internal lPart/vPart) on clear —
   // same workaround as DataPage, see its comment for why.
@@ -282,9 +283,10 @@ export default function EventPage() {
       videoId,
       eventIdStart,
       eventIdEnd,
-      ...overrides, // allow calling with new values immediately, avoid stale closure
+      ...overrides,
     };
     setLoading(true);
+    setLoadError(null);
     try {
       const res = await fetchEvents({
         page: targetPage,
@@ -295,12 +297,11 @@ export default function EventPage() {
       });
       setEvents(res.events);
       setTotalPages(res.totalPages);
-      // Trust backend's returned page, same reasoning as DataPage:
-      // avoids UI showing page > totalPages after a filter shrinks the result set.
       setPage(res.page ?? targetPage);
-      // Real max event_id for this video, computed server-side from the FULL
-      // pool (not the paginated page) — drives the clamp bounds and hint text.
       setEventIdEndFallback(res.maxEventId ?? 0);
+    } catch (e) {
+      setLoadError("Không thể tải dữ liệu. Vui lòng thử lại.");
+      setEventIdEndFallback(0);   // <-- CHỈ THÊM DÒNG NÀY vào catch đã có sẵn
     } finally {
       setLoading(false);
     }
@@ -309,13 +310,10 @@ export default function EventPage() {
   // Load once on mount.
   useEffect(() => { load(1); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Reload whenever we land on a specific exact video, so maxEventId (and
-  // the clamp bounds / hint text) reflect the video actually selected instead
-  // of a stale value from whatever was loaded before.
   useEffect(() => {
     if (isExactVideo) load(1);
   }, [isExactVideo, videoId]); // eslint-disable-line react-hooks/exhaustive-deps
-
+  
   // -------------------------------------------------------------------------
   // Handlers
   // -------------------------------------------------------------------------
@@ -383,6 +381,7 @@ export default function EventPage() {
         </p>
 
         {filterError && <p className="ss-form-error">{filterError}</p>}
+        {loadError && <p className="ss-form-error">{loadError}</p>}
 
         <div className="ss-form-actions">
           <button type="submit" className="ss-btn ss-btn--primary" disabled={loading}>

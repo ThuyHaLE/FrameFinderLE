@@ -1,6 +1,6 @@
 // sceneseek-frontend/src/context/SearchContext.jsx
 
-import { createContext, useContext, useState, useCallback, useRef } from "react";
+import { createContext, useContext, useState, useCallback, useRef, useEffect } from "react";
 import {
   DEFAULT_QUERY_TYPE_KEY,
   emptyFieldValues,
@@ -18,6 +18,17 @@ const SearchContext = createContext(null);
 
 function newSessionId() {
   return `s_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+}
+
+function extractQueryText(type, fieldValues) {
+  return type.fields
+    .map((f) => {
+      const v = fieldValues[f.name];
+      if (Array.isArray(v)) return v.filter(Boolean).join(" ");
+      return v || "";
+    })
+    .join(" ")
+    .trim();
 }
 
 export function SearchProvider({ children }) {
@@ -125,7 +136,7 @@ export function SearchProvider({ children }) {
     setFieldValues((prev) => ({ ...prev, [name]: value }));
   }, []);
 
-  // [MỚI] List-field actions — used by fields of type "query_list" (e.g. Type 2's N ordered scenes)
+  // List-field actions — used by fields of type "query_list" (e.g. Type 2's N ordered scenes)
   const updateListField = useCallback((name, index, value) => {
     setFieldValues((prev) => {
       const list = [...(prev[name] ?? [])];
@@ -165,12 +176,60 @@ export function SearchProvider({ children }) {
     });
   }, []);
 
-  // Debounced-by-caller keyword fetch — call this from the input's onChange handler.
-  const refreshKeywordSuggestions = useCallback(async (text) => {
-    if (!useKeywords) return;
-    const suggestions = await getKeywordSuggestions(text);
-    setKeywords((prev) => Array.from(new Set([...prev, ...suggestions])));
-  }, [useKeywords]);
+    // Auto-fetch keyword suggestions: run immediately when checkbox is ticked,
+    // debounce 3s when typing. Turning the checkbox off clears keywords entirely
+    // (including any manually added ones) — checkbox is the single source of truth.
+    const debounceRef = useRef(null);
+    const prevUseKeywordsRef = useRef(false);
+
+    useEffect(() => {
+      let cancelled = false;
+
+      if (!useKeywords) {
+        prevUseKeywordsRef.current = false;
+        if (debounceRef.current) clearTimeout(debounceRef.current);
+        setKeywords([]);
+        return;
+      }
+
+      const text = extractQueryText(activeType, fieldValues);
+      const justEnabled = !prevUseKeywordsRef.current;
+      prevUseKeywordsRef.current = true;
+
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+
+      // Query trống → reset keywords, không fetch
+      if (!text) {
+        setKeywords([]);
+        return;
+      }
+
+      const runFetch = async () => {
+        try {
+          const suggestions = await getKeywordSuggestions(text);
+          if (cancelled) return;
+          setKeywords((prev) => Array.from(new Set([...prev, ...suggestions])));
+        } catch (e) {
+          if (cancelled) return;
+          // best-effort suggestion, không cần chặn UI, nhưng nên log để dev biết
+          console.error("Không thể lấy keyword suggestions:", e);
+        }
+      };
+
+      if (justEnabled) {
+        // Vừa tick checkbox → chạy ngay dựa trên query đã nhập, không chờ
+        runFetch();
+      } else {
+        // Đang gõ → debounce 3s kể từ lần đổi field cuối cùng
+        debounceRef.current = setTimeout(runFetch, 3000);
+      }
+
+      return () => {
+        cancelled = true;
+        if (debounceRef.current) clearTimeout(debounceRef.current);
+      };
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [useKeywords, fieldValues, activeType]);
 
   const removeKeyword = useCallback((kw) => {
     setKeywords((prev) => prev.filter((k2) => k2 !== kw));
@@ -219,7 +278,8 @@ export function SearchProvider({ children }) {
     } finally {
       setLoading(false);
     }
-  }, [activeTypeKey, fieldValues, keywords, k, displayOption, imagesPerPage, page, sessionId, isQueryEmpty]);
+  }, [activeTypeKey, fieldValues, keywords, k, displayOption, imagesPerPage, page, sessionId, isQueryEmpty, strict, minOccurrences]);
+  //[activeTypeKey, fieldValues, keywords, k, displayOption, imagesPerPage, page, sessionId, isQueryEmpty]);
 
   const changePage = useCallback(async (nextPage) => {
     setLoading(true);
@@ -295,7 +355,6 @@ export function SearchProvider({ children }) {
     useKeywords,
     setUseKeywords,
     keywords,
-    refreshKeywordSuggestions,
     addKeyword,
     removeKeyword,
     clearKeywords,
