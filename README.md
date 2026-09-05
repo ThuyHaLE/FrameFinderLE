@@ -102,9 +102,9 @@ Không cần cài đặt gì, chạy thử ngay trên trình duyệt:
 ### Cách 2 — Cài đặt local đầy đủ
 
 ```bash
-# Clone repo
-git clone <repo-url>
-cd <repo-name>
+# Clone SceneSeek repository
+!git clone https://github.com/ThuyHaLE/SceneSeek.git
+%cd SceneSeek
 
 # Cài đặt backend
 cd backend
