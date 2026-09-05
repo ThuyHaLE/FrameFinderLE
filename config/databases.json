@@ -1,0 +1,26 @@
+{
+  "hnsw_jinaclipv2": {
+    "index_type": "hnsw",
+    "index_path": "static/databases/faiss-index-hnsw-jinaclipv2/merged_index_hnsw_jinaclipv2_v0.bin",
+    "info_path": "static/databases/faiss-index-hnsw-jinaclipv2/image_info_dict.json",
+    "hnsw_ef_search": 128
+  },
+  "flatip_dangvantuan": {
+    "index_type": "flat",
+    "index_path": "static/databases/faiss-index-flatip-dangvantuan/transcript_events.index",
+    "info_path": "static/databases/faiss-index-flatip-dangvantuan/transcript_id_map.json"
+  },
+  "jinaclipv2_encoded_frames": {
+    "encoded_frames_path": "static/databases/jinaclipv2_encoded_frames/encoded_frames.pt"
+  },
+  "all_event_transcripts": {
+    "event_transcripts_path": "static/databases/combined_event_transcripts/combined_event_transcripts.json"
+  },
+  "bm25_flatip_dangvantuan": {
+    "index_type": "bm25_flat",
+    "embeddings_path": "static/databases/faiss-index-bm25_flatip-dangvantuan/embeddings.pt",
+    "bm25_index_path": "static/databases/faiss-index-bm25_flatip-dangvantuan/bm25_index.pkl",
+    "keyword_vocab_path": "static/databases/faiss-index-bm25_flatip-dangvantuan/keyword_vocab.json",
+    "query_cache_path": "static/databases/faiss-index-bm25_flatip-dangvantuan/query_cache.db"
+  }
+}

@@ -1,0 +1,65 @@
+// components/results/VideoGroupItem.jsx
+
+import EventFrameStrip from "./EventFrameStrip";
+
+export default function VideoGroupItem({
+  videoId,
+  events,
+  onSearchSimilar,
+  showFeedback = true,
+  getMatchedChannelsLabel, // (cluster) => string | null — only Type 2
+  getMissingChannelsLabel,
+}) {
+  // Defensive: filter out events with no usable frames instead of letting
+  // ev.frames[0] throw when frames is undefined/empty — a shape mismatch
+  // from the backend shouldn't take down the whole page.
+  const safeEvents = (events || []).filter((ev) => Array.isArray(ev.frames) && ev.frames.length > 0);
+  if (safeEvents.length === 0) return null;
+
+  const totalFrames = safeEvents.reduce((sum, e) => sum + (e.frame_count ?? e.frames.length), 0);
+
+  return (
+    <div className="ss-video-group">
+      <div className="ss-video-group__header">
+        <span className="ss-video-group__video">{videoId}</span>
+        <span className="ss-video-group__count">
+          {totalFrames} frame{safeEvents.length > 1 ? ` · ${safeEvents.length} sự kiện` : ""}
+        </span>
+      </div>
+
+      {safeEvents.map((ev, i) => {
+        const matchedLabel = getMatchedChannelsLabel?.(ev);
+        const missingLabel = getMissingChannelsLabel?.(ev); // [THIẾU]
+
+        return (
+          <div
+            className="ss-video-group__event"
+            key={`${videoId}-${ev.start ?? "na"}-${ev.frames[0]?.db_idx ?? i}`}
+          >
+            {ev.text && (
+              <p className="ss-cluster-item__text">
+                {ev.start != null && ev.end != null && (
+                  <span className="ss-cluster-item__meta">
+                    {ev.start.toFixed(1)}s – {ev.end.toFixed(1)}s
+                  </span>
+                )}
+                {" — "}
+                {ev.text}
+              </p>
+            )}
+
+            {(matchedLabel || missingLabel) && (
+              <p className="ss-cluster-item__matched">
+                {matchedLabel}
+                {matchedLabel && missingLabel && " "}
+                {missingLabel && <span className="ss-cluster-item__missing">{missingLabel}</span>}
+              </p>
+            )}
+
+            <EventFrameStrip frames={ev.frames} onSearchSimilar={onSearchSimilar} showFeedback={showFeedback} />
+          </div>
+        );
+      })}
+    </div>
+  );
+}

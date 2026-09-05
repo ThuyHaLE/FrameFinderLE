@@ -1,0 +1,5 @@
+Trong đoạn video nấu ăn một món ăn về nấm, gồm các khoảnh khắc sơ chế:
+E1: Khoảnh khắc đầu tiên thấy cắt nấm.
+E2: Khoảnh khắc đầu tiên cắt củ năng.
+E2: Khoảnh khắc đầu tiên cắt đậu hủ.
+E4: Khoảnh khắc chảo đặt lên bếp, đầu bếp mở lửa và thấy lửa bắt đầu xuất hiện
