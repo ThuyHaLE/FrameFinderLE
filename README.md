@@ -84,10 +84,20 @@ Chi tiết thuật toán, schema, và các quyết định thiết kế xem tạ
 ## 🚀 Getting Started
 
 ### Cách 1 — Thử nhanh trên Google Colab
-
+ 
 Không cần cài đặt gì, chạy thử ngay trên trình duyệt:
-
+ 
 [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/ThuyHaLE/SceneSeek/blob/main/app_notebook.ipynb)
+ 
+**Trước khi chạy notebook**, bạn cần chuẩn bị 1 ngrok authtoken để notebook có thể expose server ra 1 URL public truy cập được (vì Colab không cho truy cập trực tiếp vào localhost):
+ 
+1. Tạo tài khoản free tại [ngrok.com](https://ngrok.com), vào Dashboard → **Your Authtoken** để lấy token.
+2. Trong Colab, bấm icon 🔑 (Secrets) ở sidebar trái → **Add new secret**:
+   - Name: `NGROK_API_KEY`
+   - Value: dán authtoken vừa copy
+   - **Bật toggle "Notebook access"** cho secret này (nếu quên bước này, notebook sẽ báo lỗi không đọc được secret dù đã tạo).
+3. Chạy notebook như bình thường — cell cuối sẽ in ra 1 URL public (dạng `https://xxxx.ngrok-free.app`), đây là link để truy cập SceneSeek từ trình duyệt.
+> **Lưu ý**: giữ cell đang chạy (không đóng tab/ngắt kết nối) — tunnel sẽ đóng ngay khi cell dừng.
 
 ### Cách 2 — Cài đặt local đầy đủ
 
